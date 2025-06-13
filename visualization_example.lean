@@ -12,17 +12,20 @@ open DiagramGenerator
 open InfiniteEngine
 
 /--
-  Define an instance of ConfigSpace for our 2D example
--/
-instance : ConfigSpace (PiLp (Fin 2) Real) where
-  -- Define the measure (normalized Lebesgue measure)
-  volume := sorry -- In full implementation would use Lebesgue measure
-  measure_nonzero := sorry 
-  measure_normalized := sorry
-  dense_points := sorry
-  connected := sorry
-  separable := sorry
-  -- Inner product space structure inherited from PiLp
+import Mathlib.MeasureTheory.Measure.Lebesgue
+import Mathlib.Topology.MetricSpace.Basic
+import Mathlib.Data.Fin.Basic
+import Mathlib.Analysis.NormedSpace.PiLp
+
+open MeasureTheory Set
+
+noncomputable instance : ConfigSpace (PiLp (Fin 2) ℝ) where
+  volume := Measure.prod volume volume
+  measure_nonzero := fun U hU => MeasureTheory.measure_pos_of_isOpen volume U hU
+  measure_normalized := (volume (Icc 0 1 : Set (PiLp (Fin 2) ℝ)) = 1) -- unit square
+  dense_points := DenseRange (fun q : PiLp (Fin 2) ℚ => (q : PiLp (Fin 2) ℝ))
+  connected := isConnected_univ
+  separable := Metric.SeparableSpace.of_dense (fun q : PiLp (Fin 2) ℚ => (q : PiLp (Fin 2) ℝ))
 
 /--
   Define an instance of SO(2) rotation group for our examples
