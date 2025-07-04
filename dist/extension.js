@@ -1,0 +1,51 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deactivate = exports.activate = void 0;
+const vscode = require("vscode");
+const diagramGenerator_1 = require("./diagramGenerator");
+const webviewPanel_1 = require("./webviewPanel");
+const codeAnalyzer_1 = require("./codeAnalyzer");
+function activate(context) {
+    const generator = new diagramGenerator_1.DiagramGenerator();
+    const analyzer = new codeAnalyzer_1.CodeAnalyzer();
+    const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders) {
+            vscode.window.showErrorMessage('No workspace folder open.');
+            return;
+        }
+        // Analyze workspace with axiom annotation
+        const codeStructure = await analyzer.analyzeWorkspace();
+        const diagramData = generator.generateDiagram(codeStructure);
+        webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData);
+    });
+    // Register a command for the token-based visualization
+    const tokenVisualizeCommand = vscode.commands.registerCommand('reflectologyVisualizer.visualizeAnyCode', async () => {
+        try {
+            vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "Analyzing code structure...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 20, message: "Scanning workspace files..." });
+                // Run the standard code analyzer
+                const codeStructure = await analyzer.analyzeWorkspace();
+                progress.report({ increment: 40, message: "Generating visualization..." });
+                // Generate the diagram data
+                const diagramData = generator.generateDiagram(codeStructure);
+                // Create a panel with the visualization
+                webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData);
+                return true;
+            });
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Error visualizing code: ${error}`);
+        }
+    });
+    context.subscriptions.push(disposable);
+    context.subscriptions.push(tokenVisualizeCommand);
+}
+exports.activate = activate;
+function deactivate() { }
+exports.deactivate = deactivate;
+//# sourceMappingURL=extension.js.map
