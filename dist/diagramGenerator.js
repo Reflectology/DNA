@@ -120,7 +120,7 @@ class DiagramGenerator {
             // Apply inner product space projections - this ensures geometric correctness
             // In a real implementation, we would use the actual inner product
             node.position = {
-                x: x * 700 + 50,
+                x: x * 700 + 50, // Scale to fit the visualization
                 y: y * 700 + 50
             };
         }
@@ -285,8 +285,8 @@ class DiagramGenerator {
         // If node has axioms, use the first one for color
         if (node.axioms && node.axioms.length > 0) {
             const axiomColors = {
-                "32": { r: 0.12, g: 0.47, b: 0.71 },
-                "33": { r: 1.0, g: 0.5, b: 0.05 },
+                "32": { r: 0.12, g: 0.47, b: 0.71 }, // blue
+                "33": { r: 1.0, g: 0.5, b: 0.05 }, // orange
                 "40": { r: 0.17, g: 0.63, b: 0.17 } // green
             };
             return axiomColors[node.axioms[0]] || { r: 0.5, g: 0.5, b: 0.5 };
