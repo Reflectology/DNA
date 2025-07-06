@@ -115,13 +115,9 @@ class ReflectologyVisualizer {
                         gap: 4px;
                         margin-top: 4px;
                     }
-                    #diagram {
+                    #diagram { 
                         flex-grow: 1;
                         overflow: hidden;
-                        background-image:
-                            linear-gradient(to right, ${rgbToCSS(diagramData.config.gridColor)} 1px, transparent 1px),
-                            linear-gradient(to bottom, ${rgbToCSS(diagramData.config.gridColor)} 1px, transparent 1px);
-                        background-size: 50px 50px;
                     }
                     #info { 
                         height: 150px; 
@@ -224,6 +220,10 @@ class ReflectologyVisualizer {
                         border-radius: 3px;
                         padding: 3px;
                     }
+                    .grid line {
+                        stroke: #e0e0e0;
+                        stroke-width: 0.5px;
+                    }
                     .axes line {
                         stroke: #a0a0a0;
                         stroke-width: 1px;
@@ -317,10 +317,6 @@ class ReflectologyVisualizer {
                     const height = document.getElementById('diagram').clientHeight;
                     const config = ${JSON.stringify(diagramData.config)};
                     const diagramData = ${JSON.stringify(diagramData)};
-                    const gridColor = "${rgbToCSS(diagramData.config.gridColor)}";
-                    const gridSize = 50;
-                    const gridStyle = 'linear-gradient(to right, ' + gridColor + ' 1px, transparent 1px), '
-                        + 'linear-gradient(to bottom, ' + gridColor + ' 1px, transparent 1px)';
 
                     function buildTree() {
                         const container = document.getElementById('tree');
@@ -410,14 +406,37 @@ class ReflectologyVisualizer {
                     
                     // Create main group for zoom/pan
                     const g = svg.append("g");
-
+                    
+                    // Add background grid if config specifies it
                     if (config.showGrid) {
-                        svg.style("background-image", gridStyle)
-                            .style("background-size", gridSize + "px " + gridSize + "px");
-                    } else {
-                        svg.style("background-image", "none");
+                        const gridColor = "${rgbToCSS(diagramData.config.gridColor)}";
+                        const grid = g.append("g").attr("class", "grid");
+                        
+                        const gridSize = 50;
+                        const numHLines = Math.ceil(height / gridSize);
+                        const numVLines = Math.ceil(width / gridSize);
+                        
+                        for (let i = 0; i < numHLines; i++) {
+                            grid.append("line")
+                                .attr("x1", 0)
+                                .attr("y1", i * gridSize)
+                                .attr("x2", width)
+                                .attr("y2", i * gridSize)
+                                .attr("stroke", gridColor)
+                                .attr("stroke-width", 0.5);
+                        }
+                        
+                        for (let i = 0; i < numVLines; i++) {
+                            grid.append("line")
+                                .attr("x1", i * gridSize)
+                                .attr("y1", 0)
+                                .attr("x2", i * gridSize)
+                                .attr("y2", height)
+                                .attr("stroke", gridColor)
+                                .attr("stroke-width", 0.5);
+                        }
                     }
-
+                    
                     // Add axes if config specifies it
                     if (config.showAxes) {
                         const axisColor = "${rgbToCSS(diagramData.config.axisColor)}";
@@ -707,11 +726,7 @@ class ReflectologyVisualizer {
                     });
                     
                     document.getElementById("showAxes").addEventListener("change", function() {
-                        g.selectAll(".axes").style("visibility", this.checked ? "visible" : "hidden");
-                        if (config.showGrid) {
-                            svg.style("background-image", this.checked ? gridStyle : "none")
-                                .style("background-size", gridSize + "px " + gridSize + "px");
-                        }
+                        g.selectAll(".axes, .grid").style("visibility", this.checked ? "visible" : "hidden");
                         vscode.postMessage({ command: 'updateSetting', key: 'showAxes', value: this.checked });
                     });
                     
