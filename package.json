@@ -11,7 +11,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:reflectology-visualizer.generateDiagram"
+        "onCommand:reflectologyVisualizer.generateDiagram"
     ],
     "main": "./dist/extension.js",
     "contributes": {
@@ -19,6 +19,11 @@
             {
                 "command": "reflectologyVisualizer.visualizeAnyCode",
                 "title": "Visualize Any Code Structure Using Reflectology",
+                "category": "Reflectology"
+            },
+            {
+                "command": "reflectologyVisualizer.generateDiagram",
+                "title": "Generate Reflectology Diagram",
                 "category": "Reflectology"
             }
         ],

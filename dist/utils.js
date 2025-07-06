@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.scanWorkspaceForTokens = void 0;
+exports.scanWorkspaceForTokens = scanWorkspaceForTokens;
 const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
@@ -39,7 +39,7 @@ async function scanWorkspaceForTokens() {
                     const token = {
                         id: `token_${fileIndex}`,
                         name: baseName,
-                        type: ext.substring(1) || 'file',
+                        type: ext.substring(1) || 'file', // Use extension as type
                         complexity: Math.random() * 3,
                         utility: Math.floor(Math.random() * 5),
                         cost: Math.random(),
@@ -57,5 +57,4 @@ async function scanWorkspaceForTokens() {
     await walk(folder.uri.fsPath);
     return tokens;
 }
-exports.scanWorkspaceForTokens = scanWorkspaceForTokens;
 //# sourceMappingURL=utils.js.map

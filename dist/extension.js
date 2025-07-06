@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deactivate = exports.activate = void 0;
+exports.activate = activate;
+exports.deactivate = deactivate;
 const vscode = require("vscode");
 const diagramGenerator_1 = require("./diagramGenerator");
 const webviewPanel_1 = require("./webviewPanel");
@@ -45,7 +46,5 @@ function activate(context) {
     context.subscriptions.push(disposable);
     context.subscriptions.push(tokenVisualizeCommand);
 }
-exports.activate = activate;
 function deactivate() { }
-exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map
