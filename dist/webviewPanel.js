@@ -61,10 +61,20 @@ class ReflectologyVisualizer {
                         background-color: var(--vscode-editor-background);
                         color: var(--vscode-editor-foreground);
                     }
+                    #layout {
+                        display: flex;
+                        height: 100vh;
+                    }
+                    #sidebar {
+                        width: 220px;
+                        overflow: auto;
+                        border-right: 1px solid var(--vscode-editor-foreground);
+                        padding: 8px;
+                    }
                     #container {
+                        flex: 1;
                         display: flex;
                         flex-direction: column;
-                        height: 100vh;
                     }
                     #toolbar {
                         padding: 8px;
@@ -74,13 +84,21 @@ class ReflectologyVisualizer {
                         flex-wrap: wrap;
                         gap: 12px;
                     }
-                    .toggle-group {
-                        display: flex;
-                        align-items: center;
-                        gap: 4px;
+                    details.toggle-group {
                         padding: 4px 8px;
                         background: var(--vscode-editor-background);
                         border-radius: 4px;
+                    }
+                    details.toggle-group summary {
+                        cursor: pointer;
+                        user-select: none;
+                        font-weight: bold;
+                    }
+                    details.toggle-group > div {
+                        display: flex;
+                        align-items: center;
+                        gap: 4px;
+                        margin-top: 4px;
                     }
                     #diagram { 
                         flex-grow: 1;
@@ -198,59 +216,42 @@ class ReflectologyVisualizer {
                 </style>
             </head>
             <body>
-                <div id="container">
-                    <div id="toolbar">
-                        <div class="toggle-group">
-                            <label>
-                                <input type="checkbox" id="showOrbits" checked>
-                                Show Orbits
-                            </label>
-                        </div>
-                        <div class="toggle-group">
-                            <label>
-                                <input type="checkbox" id="showAxes" checked>
-                                Show Axes
-                            </label>
-                        </div>
-                        <div class="toggle-group">
-                            <label>
-                                <input type="checkbox" id="highlightCanonical" checked>
-                                Highlight Canonical Forms
-                            </label>
-                        </div>
-                        <div class="toggle-group">
-                            <label>
-                                <input type="checkbox" id="showUML">
-                                UML Class View
-                            </label>
-                        </div>
-                        <div class="toggle-group">
-                            <label>
-                                <input type="checkbox" id="showFlowDependency">
-                                Flow Dependency
-                            </label>
-                        </div>
-                        <div class="toggle-group">
-                            <label>
-                                <input type="checkbox" id="showLabels" checked>
-                                Show Labels
-                            </label>
-                        </div>
-                        <div class="toggle-group">
-                            <label for="layoutType">Layout:</label>
-                            <select id="layoutType">
-                                <option value="force">Force-Directed</option>
-                                <option value="radial">Radial</option>
-                                <option value="hierarchical">Hierarchical</option>
-                            </select>
-                        </div>
-                        <button id="resetLayout">Reset Layout</button>
-                        <button id="zoomToFit">Zoom to Fit</button>
+                <div id="layout">
+                    <div id="sidebar">
+                        <h3>Entities</h3>
+                        <div id="tree"></div>
                     </div>
+                    <div id="container">
+                        <div id="toolbar">
+                            <details class="toggle-group" open>
+                                <summary>Display Options</summary>
+                                <div>
+                                    <label><input type="checkbox" id="showOrbits" checked>Show Orbits</label>
+                                    <label><input type="checkbox" id="showAxes" checked>Show Axes</label>
+                                    <label><input type="checkbox" id="highlightCanonical" checked>Highlight Canonical Forms</label>
+                                    <label><input type="checkbox" id="showUML">UML Class View</label>
+                                    <label><input type="checkbox" id="showFlowDependency">Flow Dependency</label>
+                                    <label><input type="checkbox" id="showLabels" checked>Show Labels</label>
+                                </div>
+                            </details>
+                            <details class="toggle-group" open>
+                                <summary>Layout</summary>
+                                <div>
+                                    <label for="layoutType">Layout:</label>
+                                    <select id="layoutType">
+                                        <option value="force">Force-Directed</option>
+                                        <option value="radial">Radial</option>
+                                        <option value="hierarchical">Hierarchical</option>
+                                    </select>
+                                    <button id="resetLayout">Reset Layout</button>
+                                    <button id="zoomToFit">Zoom to Fit</button>
+                                </div>
+                            </details>
+                        </div>
 
-                    <div id="diagram"></div>
+                        <div id="diagram"></div>
 
-                    <div id="info">
+                        <div id="info">
                         <div id="legend">
                             <div class="legend-item">
                                 <div class="legend-color" style="background-color: ${rgbToCSS(diagramData.config.orbitHighlightColor)}"></div>
@@ -276,6 +277,7 @@ class ReflectologyVisualizer {
                         <div id="nodeInfo">Click a node to see details</div>
                     </div>
                 </div>
+                </div>
 
                 <script>
                     const vscode = acquireVsCodeApi();
@@ -291,6 +293,55 @@ class ReflectologyVisualizer {
                     const height = document.getElementById('diagram').clientHeight;
                     const config = ${JSON.stringify(diagramData.config)};
                     const diagramData = ${JSON.stringify(diagramData)};
+
+                    function buildTree() {
+                        const container = document.getElementById('tree');
+                        if (!container) return;
+                        container.innerHTML = '';
+
+                        const children = {};
+                        diagramData.links.forEach(l => {
+                            if (l.type === 'contains') {
+                                if (!children[l.source]) children[l.source] = [];
+                                children[l.source].push(l.target);
+                            }
+                        });
+
+                        const nodesMap = {};
+                        diagramData.nodes.forEach(n => { nodesMap[n.id] = n; });
+
+                        const roots = diagramData.nodes.filter(n => !diagramData.links.some(l => l.type === 'contains' && l.target === n.id));
+
+                        function createItem(id) {
+                            const node = nodesMap[id];
+                            const childIds = children[id] || [];
+                            const li = document.createElement('li');
+                            if (childIds.length) {
+                                const details = document.createElement('details');
+                                const summary = document.createElement('summary');
+                                summary.textContent = node.name;
+                                details.appendChild(summary);
+                                const ul = document.createElement('ul');
+                                childIds.forEach(c => ul.appendChild(createItem(c)));
+                                details.appendChild(ul);
+                                li.appendChild(details);
+                            } else {
+                                li.textContent = node.name;
+                            }
+                            li.addEventListener('click', e => {
+                                e.stopPropagation();
+                                const circle = document.querySelector("circle.node[data-id='" + id + "']");
+                                if (circle) {
+                                    showNodeInfo.call(circle, null, node);
+                                }
+                            });
+                            return li;
+                        }
+
+                        const ul = document.createElement('ul');
+                        roots.forEach(r => ul.appendChild(createItem(r.id)));
+                        container.appendChild(ul);
+                    }
                     
                     // Define colors for axioms
                     const axiomColors = {
@@ -443,6 +494,7 @@ class ReflectologyVisualizer {
                         .data(diagramData.nodes)
                         .join("circle")
                         .attr("class", d => "node" + (d.canonical ? " canonical" : ""))
+                        .attr("data-id", d => d.id)
                         .attr("r", d => d.canonical ? 12 : 8)
                         .attr("fill", d => {
                             if (d.goodness !== undefined) {
@@ -853,6 +905,7 @@ class ReflectologyVisualizer {
                     // Initial call to zoom to fit
                     setTimeout(() => {
                         document.getElementById("zoomToFit").click();
+                        buildTree();
                     }, 500);
                 </script>
             </body>

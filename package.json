@@ -11,7 +11,9 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:reflectologyVisualizer.generateDiagram"
+        "onCommand:reflectologyVisualizer.generateDiagram",
+        "onCommand:reflectologyVisualizer.visualizeAnyCode",
+        "onView:reflectologyEntities"
     ],
     "main": "./dist/extension.js",
     "contributes": {
@@ -32,6 +34,14 @@
                 {
                     "command": "reflectologyVisualizer.visualizeAnyCode",
                     "group": "navigation"
+                }
+            ]
+        },
+        "views": {
+            "explorer": [
+                {
+                    "id": "reflectologyEntities",
+                    "name": "Reflectology Entities"
                 }
             ]
         }
