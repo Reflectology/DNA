@@ -22,7 +22,7 @@ function activate(context) {
         const codeStructure = await analyzer.analyzeWorkspace();
         const diagramData = generator.generateDiagram(codeStructure);
         treeProvider.refresh(diagramData);
-        webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData);
+        webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
     });
     // Register a command for the token-based visualization
     const tokenVisualizeCommand = vscode.commands.registerCommand('reflectologyVisualizer.visualizeAnyCode', async () => {
@@ -40,7 +40,7 @@ function activate(context) {
                 const diagramData = generator.generateDiagram(codeStructure);
                 treeProvider.refresh(diagramData);
                 // Create a panel with the visualization
-                webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData);
+                webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
                 return true;
             });
         }

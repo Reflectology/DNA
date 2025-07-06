@@ -3,36 +3,59 @@ import { DiagramData, DiagramGenerator, RGB } from './diagramGenerator';
 
 export class ReflectologyVisualizer {
     private static currentPanel: ReflectologyVisualizer | undefined;
+    private static readonly STATE_KEY = 'reflectologySettings';
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
+    private _state: vscode.Memento;
     
     private constructor(
         panel: vscode.WebviewPanel,
-        diagramData: DiagramData
+        diagramData: DiagramData,
+        state: vscode.Memento
     ) {
         this._panel = panel;
+        this._state = state;
         
         // Set the webview's content
         this._updateWebview(diagramData);
         this._sendTheme();
+        const saved = this._state.get<any>(ReflectologyVisualizer.STATE_KEY, {});
+        if (saved) {
+            this._panel.webview.postMessage({ type: 'initialize', state: saved });
+        }
 
         this._disposables.push(
             vscode.window.onDidChangeActiveColorTheme((theme) => {
                 this._sendTheme(theme);
             })
         );
+
+        this._panel.webview.onDidReceiveMessage(
+            message => {
+                if (message.command === 'updateSetting') {
+                    const current = this._state.get<any>(ReflectologyVisualizer.STATE_KEY, {});
+                    current[message.key] = message.value;
+                    this._state.update(ReflectologyVisualizer.STATE_KEY, current);
+                }
+            },
+            undefined,
+            this._disposables
+        );
         
         // Listen for when the panel is disposed
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     }
     
-    static createOrShow(diagramData: DiagramData) {
+    static createOrShow(diagramData: DiagramData, state: vscode.Memento) {
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
             
         // If we already have a panel, show it
         if (ReflectologyVisualizer.currentPanel) {
             ReflectologyVisualizer.currentPanel._panel.reveal(column);
+            ReflectologyVisualizer.currentPanel._state = state;
             ReflectologyVisualizer.currentPanel._updateWebview(diagramData);
+            const saved = state.get<any>(ReflectologyVisualizer.STATE_KEY, {});
+            ReflectologyVisualizer.currentPanel._panel.webview.postMessage({ type: 'initialize', state: saved });
             return;
         }
         
@@ -49,7 +72,8 @@ export class ReflectologyVisualizer {
         
         ReflectologyVisualizer.currentPanel = new ReflectologyVisualizer(
             panel,
-            diagramData
+            diagramData,
+            state
         );
     }
     
@@ -312,6 +336,15 @@ export class ReflectologyVisualizer {
                         const msg = event.data;
                         if (msg.type === 'themeInfo') {
                             document.body.dataset.themeKind = msg.themeKind;
+                        } else if (msg.type === 'initialize') {
+                            const st = msg.state || {};
+                            document.getElementById('showOrbits').checked = st.showOrbits ?? true;
+                            document.getElementById('showAxes').checked = st.showAxes ?? true;
+                            document.getElementById('highlightCanonical').checked = st.highlightCanonical ?? true;
+                            document.getElementById('showUML').checked = st.showUML ?? false;
+                            document.getElementById('showFlowDependency').checked = st.showFlowDependency ?? false;
+                            document.getElementById('showLabels').checked = st.showLabels ?? true;
+                            document.getElementById('layoutType').value = st.layoutType || 'force';
                         }
                     });
 
@@ -725,18 +758,22 @@ export class ReflectologyVisualizer {
                     // Event handlers for toggles
                     document.getElementById("showOrbits").addEventListener("change", function() {
                         orbits.style("visibility", this.checked ? "visible" : "hidden");
+                        vscode.postMessage({ command: 'updateSetting', key: 'showOrbits', value: this.checked });
                     });
                     
                     document.getElementById("showAxes").addEventListener("change", function() {
                         g.selectAll(".axes, .grid").style("visibility", this.checked ? "visible" : "hidden");
+                        vscode.postMessage({ command: 'updateSetting', key: 'showAxes', value: this.checked });
                     });
                     
                     document.getElementById("highlightCanonical").addEventListener("change", function() {
                         node.classed("canonical", n => this.checked && n.canonical);
+                        vscode.postMessage({ command: 'updateSetting', key: 'highlightCanonical', value: this.checked });
                     });
                     
                     document.getElementById("showLabels").addEventListener("change", function() {
                         labels.style("visibility", this.checked ? "visible" : "hidden");
+                        vscode.postMessage({ command: 'updateSetting', key: 'showLabels', value: this.checked });
                     });
                     
                     document.getElementById("showUML").addEventListener("change", function() {
@@ -748,6 +785,7 @@ export class ReflectologyVisualizer {
                             umlContainers.style("display", "none");
                             node.style("visibility", "visible");
                         }
+                        vscode.postMessage({ command: 'updateSetting', key: 'showUML', value: this.checked });
                     });
                     
                     document.getElementById("showFlowDependency").addEventListener("change", function() {
@@ -759,6 +797,7 @@ export class ReflectologyVisualizer {
                             flowDependencies.style("display", "none");
                             link.style("visibility", "visible");
                         }
+                        vscode.postMessage({ command: 'updateSetting', key: 'showFlowDependency', value: this.checked });
                     });
                     
                     // Layout selection
@@ -816,6 +855,7 @@ export class ReflectologyVisualizer {
                                 }
                                 break;
                         }
+                        vscode.postMessage({ command: 'updateSetting', key: 'layoutType', value: this.value });
                     });
                     
                     // Reset layout button
