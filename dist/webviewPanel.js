@@ -8,6 +8,10 @@ class ReflectologyVisualizer {
         this._panel = panel;
         // Set the webview's content
         this._updateWebview(diagramData);
+        this._sendTheme();
+        this._disposables.push(vscode.window.onDidChangeActiveColorTheme((theme) => {
+            this._sendTheme(theme);
+        }));
         // Listen for when the panel is disposed
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     }
@@ -30,6 +34,12 @@ class ReflectologyVisualizer {
         this._panel.title = 'Reflectology Code Structure';
         this._panel.webview.html = this._getHtmlForWebview(diagramData);
     }
+    _sendTheme(theme = vscode.window.activeColorTheme) {
+        this._panel.webview.postMessage({
+            type: 'themeInfo',
+            themeKind: theme.kind
+        });
+    }
     _getHtmlForWebview(diagramData) {
         // Convert RGB to CSS color string
         const rgbToCSS = (rgb) => `rgb(${Math.round(rgb.r * 255)}, ${Math.round(rgb.g * 255)}, ${Math.round(rgb.b * 255)})`;
@@ -48,7 +58,8 @@ class ReflectologyVisualizer {
                         width: 100%; 
                         height: 100%; 
                         font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif;
-                        background-color: #f9f9f9;
+                        background-color: var(--vscode-editor-background);
+                        color: var(--vscode-editor-foreground);
                     }
                     #container {
                         display: flex;
@@ -57,8 +68,8 @@ class ReflectologyVisualizer {
                     }
                     #toolbar {
                         padding: 8px;
-                        background: #f0f0f0;
-                        border-bottom: 1px solid #ddd;
+                        background: var(--vscode-editor-background);
+                        border-bottom: 1px solid var(--vscode-editor-foreground);
                         display: flex;
                         flex-wrap: wrap;
                         gap: 12px;
@@ -68,7 +79,7 @@ class ReflectologyVisualizer {
                         align-items: center;
                         gap: 4px;
                         padding: 4px 8px;
-                        background: #e6e6e6;
+                        background: var(--vscode-editor-background);
                         border-radius: 4px;
                     }
                     #diagram { 
@@ -79,9 +90,9 @@ class ReflectologyVisualizer {
                         height: 150px; 
                         padding: 12px; 
                         font-size: 14px; 
-                        background: #f7f7f7; 
-                        overflow: auto; 
-                        border-top: 1px solid #ddd;
+                        background: var(--vscode-editor-background);
+                        overflow: auto;
+                        border-top: 1px solid var(--vscode-editor-foreground);
                     }
                     #legend { 
                         margin-bottom: 8px; 
@@ -158,18 +169,21 @@ class ReflectologyVisualizer {
                         text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
                     }
                     button {
-                        background: #ffffff;
-                        border: 1px solid #ccc;
+                        background: var(--vscode-editor-background);
+                        border: 1px solid var(--vscode-editor-foreground);
+                        color: var(--vscode-editor-foreground);
                         border-radius: 3px;
                         padding: 4px 8px;
                         cursor: pointer;
                     }
                     button:hover {
-                        background: #f0f0f0;
+                        background: var(--vscode-editor-foreground);
+                        color: var(--vscode-editor-background);
                     }
                     select {
-                        background: #ffffff;
-                        border: 1px solid #ccc;
+                        background: var(--vscode-editor-background);
+                        border: 1px solid var(--vscode-editor-foreground);
+                        color: var(--vscode-editor-foreground);
                         border-radius: 3px;
                         padding: 3px;
                     }
@@ -264,6 +278,14 @@ class ReflectologyVisualizer {
                 </div>
 
                 <script>
+                    const vscode = acquireVsCodeApi();
+                    window.addEventListener('message', (event) => {
+                        const msg = event.data;
+                        if (msg.type === 'themeInfo') {
+                            document.body.dataset.themeKind = msg.themeKind;
+                        }
+                    });
+
                     // Configuration and data setup
                     const width = document.getElementById('diagram').clientWidth;
                     const height = document.getElementById('diagram').clientHeight;
