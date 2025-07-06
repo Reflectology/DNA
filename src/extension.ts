@@ -22,7 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
         const codeStructure = await analyzer.analyzeWorkspace();
         const diagramData = generator.generateDiagram(codeStructure);
         treeProvider.refresh(diagramData);
-        ReflectologyVisualizer.createOrShow(diagramData);
+        ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
     });
 
     // Register a command for the token-based visualization
@@ -48,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
                     treeProvider.refresh(diagramData);
 
                     // Create a panel with the visualization
-                    ReflectologyVisualizer.createOrShow(diagramData);
+                    ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
                     
                     return true;
                 });
