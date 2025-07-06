@@ -3,10 +3,13 @@ import { DiagramGenerator } from './diagramGenerator';
 import { ReflectologyVisualizer } from './webviewPanel';
 import { CodeAnalyzer } from './codeAnalyzer';
 import { TokenAdapter } from './codeAnalyzer';
+import { EntityTreeProvider } from './entityTreeProvider';
 
 export function activate(context: vscode.ExtensionContext) {
     const generator = new DiagramGenerator();
     const analyzer = new CodeAnalyzer();
+    const treeProvider = new EntityTreeProvider();
+    vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
 
     const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -18,6 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
         // Analyze workspace with axiom annotation
         const codeStructure = await analyzer.analyzeWorkspace();
         const diagramData = generator.generateDiagram(codeStructure);
+        treeProvider.refresh(diagramData);
         ReflectologyVisualizer.createOrShow(diagramData);
     });
 
@@ -40,7 +44,9 @@ export function activate(context: vscode.ExtensionContext) {
                     
                     // Generate the diagram data
                     const diagramData = generator.generateDiagram(codeStructure);
-                    
+
+                    treeProvider.refresh(diagramData);
+
                     // Create a panel with the visualization
                     ReflectologyVisualizer.createOrShow(diagramData);
                     
