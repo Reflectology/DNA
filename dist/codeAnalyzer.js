@@ -30,6 +30,7 @@ class CodeAnalyzer {
                         const entityId = `file_${fileIndex}`;
                         const baseName = path.basename(fullPath);
                         const lines = text.split("\n");
+                        const lineCount = lines.length;
                         const functions = [];
                         const references = [];
                         let structureDepth = 0;
@@ -57,7 +58,8 @@ class CodeAnalyzer {
                             metrics: {
                                 complexity: maxDepth,
                                 utility: functions.length,
-                                cost: 0
+                                cost: 0,
+                                lineCount: lineCount
                             },
                             axioms: ["32"]
                         };
