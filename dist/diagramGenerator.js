@@ -298,31 +298,14 @@ class DiagramGenerator {
      * Enhance nodes with additional information for UML class diagrams
      */
     enhanceNodesWithUMLInfo(nodes, codeStructure) {
-        // Group nodes by type to find related fields/methods
-        const typeGroups = new Map();
-        for (const entity of codeStructure.entities) {
-            const type = this.getUMLType(entity);
-            if (!typeGroups.has(type)) {
-                typeGroups.set(type, []);
-            }
-            typeGroups.get(type).push(entity);
-        }
-        // Enhance node metrics with additional UML info
         for (const node of nodes) {
-            // Find the original entity
-            const entity = codeStructure.entities.find(e => e.id === node.id);
-            if (!entity)
-                continue;
-            // Add UML type information
-            node.umlType = this.getUMLType(entity);
-            // Add method count and field count metrics if not present
-            if (!node.metrics.methodCount) {
-                const methods = typeGroups.get(node.umlType)?.filter(e => e.type === 'function') || [];
-                node.metrics.methodCount = methods.length;
-            }
-            if (!node.metrics.fieldCount) {
-                const fields = typeGroups.get(node.umlType)?.filter(e => e.type === 'field') || [];
-                node.metrics.fieldCount = fields.length;
+            if (node.type === 'function') {
+                const called = codeStructure.relationships
+                    .filter(r => r.type === 'calls' && r.source === node.id)
+                    .map(r => r.target);
+                if (called.length > 0) {
+                    node.calls = called;
+                }
             }
         }
     }

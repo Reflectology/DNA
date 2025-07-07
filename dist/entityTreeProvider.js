@@ -30,19 +30,36 @@ class EntityTreeProvider {
         }
         if (!element) {
             const roots = this.diagramData.nodes.filter(n => !this.diagramData.links.some(l => l.type === 'contains' && l.target === n.id));
-            return Promise.resolve(roots.map(n => this.toItem(n)));
+            const sorted = this.sortNodes(roots);
+            return Promise.resolve(sorted.map(n => this.toItem(n)));
         }
-        const childrenIds = this.diagramData.links
+        const children = this.diagramData.links
             .filter(l => l.type === 'contains' && l.source === element.node.id)
-            .map(l => l.target);
-        return Promise.resolve(childrenIds.map(id => {
-            const node = this.diagramData.nodes.find(n => n.id === id);
-            return this.toItem(node);
-        }));
+            .map(l => this.diagramData.nodes.find(n => n.id === l.target))
+            .filter(Boolean);
+        const sorted = this.sortNodes(children);
+        return Promise.resolve(sorted.map(n => this.toItem(n)));
     }
     toItem(node) {
         const hasChildren = this.diagramData.links.some(l => l.type === 'contains' && l.source === node.id);
-        return new EntityTreeItem(node, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+        const item = new EntityTreeItem(node, hasChildren ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+        if (node.type === 'folder') {
+            item.iconPath = vscode.ThemeIcon.Folder;
+        }
+        else if (node.type === 'file') {
+            item.iconPath = vscode.ThemeIcon.File;
+        }
+        return item;
+    }
+    sortNodes(nodes) {
+        const order = (t) => t === 'folder' ? 0 : t === 'file' ? 1 : 2;
+        return nodes.sort((a, b) => {
+            const oa = order(a.type);
+            const ob = order(b.type);
+            if (oa !== ob)
+                return oa - ob;
+            return a.name.localeCompare(b.name);
+        });
     }
 }
 exports.EntityTreeProvider = EntityTreeProvider;

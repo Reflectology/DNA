@@ -44,13 +44,39 @@ export class CodeAnalyzer {
 
         const results: CodeStructure = { entities: [], relationships: [] };
         let fileIndex = 0;
+        let folderIndex = 0;
 
-        const walk = async (dir: string) => {
+        const rootFolderId = `folder_${folderIndex++}`;
+        const rootFolder: CodeEntity = {
+            id: rootFolderId,
+            name: path.basename(folder.uri.fsPath),
+            type: "folder",
+            metrics: {},
+            axioms: ["32"]
+        };
+        results.entities.push(rootFolder);
+
+        const walk = async (dir: string, parentId: string) => {
             const entries = await fs.promises.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
-                    await walk(fullPath);
+                    const folderEntity: CodeEntity = {
+                        id: `folder_${folderIndex++}`,
+                        name: entry.name,
+                        type: "folder",
+                        metrics: {},
+                        axioms: ["32"]
+                    };
+                    results.entities.push(folderEntity);
+                    results.relationships.push({
+                        source: parentId,
+                        target: folderEntity.id,
+                        type: "contains",
+                        weight: 1,
+                        flowDirection: "forward"
+                    });
+                    await walk(fullPath, folderEntity.id);
                 } else {
                     const ext = path.extname(entry.name).toLowerCase();
                     const isBinary = [".jpg", ".png", ".exe", ".dll", ".bin"].includes(ext);
@@ -98,6 +124,13 @@ export class CodeAnalyzer {
                             axioms: ["32"]
                         };
                         results.entities.push(fileEntity);
+                        results.relationships.push({
+                            source: parentId,
+                            target: fileEntity.id,
+                            type: "contains",
+                            weight: 1,
+                            flowDirection: "forward"
+                        });
 
                         // Add function entities and relationships
                         functions.forEach((funcName, i) => {
@@ -147,7 +180,7 @@ export class CodeAnalyzer {
             }
         };
 
-        await walk(folder.uri.fsPath);
+        await walk(folder.uri.fsPath, rootFolderId);
         this.enrichWithReflectology(results);
         return results;
     }
