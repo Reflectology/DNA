@@ -13,7 +13,8 @@
     "activationEvents": [
         "onCommand:reflectologyVisualizer.generateDiagram",
         "onCommand:reflectologyVisualizer.visualizeAnyCode",
-        "onView:reflectologyEntities"
+        "onView:reflectologyEntities",
+        "onView:reflectologyMetrics"
     ],
     "main": "./dist/extension.js",
     "contributes": {
@@ -37,11 +38,33 @@
                 }
             ]
         },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "reflectology",
+                    "title": "Reflectology",
+                    "icon": "resources/icon.svg"
+                }
+            ],
+            "panel": [
+                {
+                    "id": "reflectologyPanel",
+                    "title": "Reflectology",
+                    "icon": "resources/icon.svg"
+                }
+            ]
+        },
         "views": {
-            "explorer": [
+            "reflectology": [
                 {
                     "id": "reflectologyEntities",
-                    "name": "Reflectology Entities"
+                    "name": "Entities"
+                }
+            ],
+            "reflectologyPanel": [
+                {
+                    "id": "reflectologyMetrics",
+                    "name": "Metrics"
                 }
             ]
         }

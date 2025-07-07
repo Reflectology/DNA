@@ -7,11 +7,14 @@ const diagramGenerator_1 = require("./diagramGenerator");
 const webviewPanel_1 = require("./webviewPanel");
 const codeAnalyzer_1 = require("./codeAnalyzer");
 const entityTreeProvider_1 = require("./entityTreeProvider");
+const metricsView_1 = require("./metricsView");
 function activate(context) {
     const generator = new diagramGenerator_1.DiagramGenerator();
     const analyzer = new codeAnalyzer_1.CodeAnalyzer();
     const treeProvider = new entityTreeProvider_1.EntityTreeProvider();
     vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
+    const metricsProvider = new metricsView_1.MetricsViewProvider(context);
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider(metricsView_1.MetricsViewProvider.viewType, metricsProvider));
     const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
@@ -23,6 +26,7 @@ function activate(context) {
         const diagramData = generator.generateDiagram(codeStructure);
         treeProvider.refresh(diagramData);
         webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
+        vscode.commands.executeCommand('workbench.view.extension.reflectology');
     });
     // Register a command for the token-based visualization
     const tokenVisualizeCommand = vscode.commands.registerCommand('reflectologyVisualizer.visualizeAnyCode', async () => {
@@ -41,6 +45,7 @@ function activate(context) {
                 treeProvider.refresh(diagramData);
                 // Create a panel with the visualization
                 webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
+                vscode.commands.executeCommand('workbench.view.extension.reflectology');
                 return true;
             });
         }
@@ -50,6 +55,9 @@ function activate(context) {
     });
     context.subscriptions.push(disposable);
     context.subscriptions.push(tokenVisualizeCommand);
+    webviewPanel_1.ReflectologyVisualizer.onNodeSelected(node => {
+        metricsProvider.showMetrics(node);
+    });
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map
