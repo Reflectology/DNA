@@ -4,6 +4,8 @@ import { DiagramData, DiagramGenerator, RGB } from './diagramGenerator';
 export class ReflectologyVisualizer {
     private static currentPanel: ReflectologyVisualizer | undefined;
     private static readonly STATE_KEY = 'reflectologySettings';
+    private static nodeSelectedEmitter = new vscode.EventEmitter<any>();
+    public static readonly onNodeSelected = ReflectologyVisualizer.nodeSelectedEmitter.event;
     private readonly _panel: vscode.WebviewPanel;
     private _disposables: vscode.Disposable[] = [];
     private _state: vscode.Memento;
@@ -36,6 +38,8 @@ export class ReflectologyVisualizer {
                     const current = this._state.get<any>(ReflectologyVisualizer.STATE_KEY, {});
                     current[message.key] = message.value;
                     this._state.update(ReflectologyVisualizer.STATE_KEY, current);
+                } else if (message.command === 'nodeSelected') {
+                    ReflectologyVisualizer.nodeSelectedEmitter.fire(message.node);
                 }
             },
             undefined,
@@ -108,19 +112,13 @@ export class ReflectologyVisualizer {
                         padding: 0; 
                         width: 100%; 
                         height: 100%; 
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif;
+                        font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif);
                         background-color: var(--vscode-editor-background);
                         color: var(--vscode-editor-foreground);
                     }
                     #layout {
                         display: flex;
                         height: 100vh;
-                    }
-                    #sidebar {
-                        width: 220px;
-                        overflow: auto;
-                        border-right: 1px solid var(--vscode-editor-foreground);
-                        padding: 8px;
                     }
                     #container {
                         flex: 1;
@@ -235,6 +233,7 @@ export class ReflectologyVisualizer {
                     .label {
                         font-size: 12px;
                         pointer-events: none;
+                        font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, sans-serif);
                         text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
                     }
                     button {
@@ -268,10 +267,6 @@ export class ReflectologyVisualizer {
             </head>
             <body>
                 <div id="layout">
-                    <div id="sidebar">
-                        <h3>Entities</h3>
-                        <div id="tree"></div>
-                    </div>
                     <div id="container">
                         <div id="toolbar">
                             <details class="toggle-group" open>
@@ -354,54 +349,6 @@ export class ReflectologyVisualizer {
                     const config = ${JSON.stringify(diagramData.config)};
                     const diagramData = ${JSON.stringify(diagramData)};
 
-                    function buildTree() {
-                        const container = document.getElementById('tree');
-                        if (!container) return;
-                        container.innerHTML = '';
-
-                        const children = {};
-                        diagramData.links.forEach(l => {
-                            if (l.type === 'contains') {
-                                if (!children[l.source]) children[l.source] = [];
-                                children[l.source].push(l.target);
-                            }
-                        });
-
-                        const nodesMap = {};
-                        diagramData.nodes.forEach(n => { nodesMap[n.id] = n; });
-
-                        const roots = diagramData.nodes.filter(n => !diagramData.links.some(l => l.type === 'contains' && l.target === n.id));
-
-                        function createItem(id) {
-                            const node = nodesMap[id];
-                            const childIds = children[id] || [];
-                            const li = document.createElement('li');
-                            if (childIds.length) {
-                                const details = document.createElement('details');
-                                const summary = document.createElement('summary');
-                                summary.textContent = node.name;
-                                details.appendChild(summary);
-                                const ul = document.createElement('ul');
-                                childIds.forEach(c => ul.appendChild(createItem(c)));
-                                details.appendChild(ul);
-                                li.appendChild(details);
-                            } else {
-                                li.textContent = node.name;
-                            }
-                            li.addEventListener('click', e => {
-                                e.stopPropagation();
-                                const circle = document.querySelector("circle.node[data-id='" + id + "']");
-                                if (circle) {
-                                    showNodeInfo.call(circle, null, node);
-                                }
-                            });
-                            return li;
-                        }
-
-                        const ul = document.createElement('ul');
-                        roots.forEach(r => ul.appendChild(createItem(r.id)));
-                        container.appendChild(ul);
-                    }
                     
                     // Define colors for axioms
                     const axiomColors = {
@@ -724,7 +671,7 @@ export class ReflectologyVisualizer {
                     function showNodeInfo(event, d) {
                         // Clear any previous selections
                         node.classed("selected", false);
-                        
+
                         // Mark this node as selected
                         d3.select(this).classed("selected", true);
                         
@@ -753,6 +700,7 @@ export class ReflectologyVisualizer {
                         }
                         
                         infoDiv.innerHTML = info;
+                        vscode.postMessage({ command: 'nodeSelected', node: d });
                     }
 
                     // Event handlers for toggles
@@ -972,7 +920,6 @@ export class ReflectologyVisualizer {
                     // Initial call to zoom to fit
                     setTimeout(() => {
                         document.getElementById("zoomToFit").click();
-                        buildTree();
                     }, 500);
                 </script>
             </body>

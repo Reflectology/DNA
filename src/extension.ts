@@ -4,12 +4,15 @@ import { ReflectologyVisualizer } from './webviewPanel';
 import { CodeAnalyzer } from './codeAnalyzer';
 import { TokenAdapter } from './codeAnalyzer';
 import { EntityTreeProvider } from './entityTreeProvider';
+import { MetricsViewProvider } from './metricsView';
 
 export function activate(context: vscode.ExtensionContext) {
     const generator = new DiagramGenerator();
     const analyzer = new CodeAnalyzer();
     const treeProvider = new EntityTreeProvider();
     vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
+    const metricsProvider = new MetricsViewProvider(context);
+    context.subscriptions.push(vscode.window.registerWebviewViewProvider(MetricsViewProvider.viewType, metricsProvider));
 
     const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -23,6 +26,7 @@ export function activate(context: vscode.ExtensionContext) {
         const diagramData = generator.generateDiagram(codeStructure);
         treeProvider.refresh(diagramData);
         ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
+        vscode.commands.executeCommand('workbench.view.extension.reflectology');
     });
 
     // Register a command for the token-based visualization
@@ -49,6 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
 
                     // Create a panel with the visualization
                     ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
+                    vscode.commands.executeCommand('workbench.view.extension.reflectology');
                     
                     return true;
                 });
@@ -60,6 +65,10 @@ export function activate(context: vscode.ExtensionContext) {
     
     context.subscriptions.push(disposable);
     context.subscriptions.push(tokenVisualizeCommand);
+
+    ReflectologyVisualizer.onNodeSelected(node => {
+        metricsProvider.showMetrics(node);
+    });
 }
 
 export function deactivate() {}
