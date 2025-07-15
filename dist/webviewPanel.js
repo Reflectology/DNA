@@ -226,11 +226,41 @@ class ReflectologyVisualizer {
                         stroke: #a0a0a0;
                         stroke-width: 1px;
                     }
+                    #entityTreePanel {
+                        background: var(--vscode-editor-background);
+                        border-bottom: 1px solid var(--vscode-editor-foreground);
+                        padding: 4px 8px;
+                        max-height: 200px;
+                        overflow: auto;
+                    }
+                    #entityTreePanel summary {
+                        font-weight: bold;
+                        cursor: pointer;
+                        user-select: none;
+                    }
+                    #tree ul {
+                        list-style: none;
+                        margin: 0;
+                        padding-left: 16px;
+                    }
+                    #tree li {
+                        cursor: pointer;
+                        padding: 2px 0;
+                        user-select: none;
+                    }
+                    #tree li.selected {
+                        background: var(--vscode-editor-selectionBackground, #264f78);
+                        color: var(--vscode-editor-selectionForeground, #fff);
+                    }
                 </style>
             </head>
             <body>
                 <div id="layout">
                     <div id="container">
+                        <details id="entityTreePanel" open>
+                            <summary>Entity Tree</summary>
+                            <div id="tree"></div>
+                        </details>
                         <div id="toolbar">
                             <details class="toggle-group" open>
                                 <summary>Display Options</summary>
@@ -665,6 +695,57 @@ class ReflectologyVisualizer {
                         infoDiv.innerHTML = info;
                         vscode.postMessage({ command: 'nodeSelected', node: d });
                     }
+
+                    // --- Entity Tree Functionality ---
+                    function buildTree() {
+                        const container = document.getElementById('tree');
+                        if (!container) return;
+                        container.innerHTML = '';
+                        const children = {};
+                        diagramData.links.forEach(l => {
+                            if (l.type === 'contains') {
+                                if (!children[l.source]) children[l.source] = [];
+                                children[l.source].push(l.target);
+                            }
+                        });
+                        const nodesMap = {};
+                        diagramData.nodes.forEach(n => { nodesMap[n.id] = n; });
+                        const roots = diagramData.nodes.filter(n => !diagramData.links.some(l => l.type === 'contains' && l.target === n.id));
+                        function createItem(id) {
+                            const node = nodesMap[id];
+                            const childIds = children[id] || [];
+                            const li = document.createElement('li');
+                            if (childIds.length) {
+                                const details = document.createElement('details');
+                                const summary = document.createElement('summary');
+                                summary.textContent = node.name;
+                                details.appendChild(summary);
+                                const ul = document.createElement('ul');
+                                childIds.forEach(c => ul.appendChild(createItem(c)));
+                                details.appendChild(ul);
+                                li.appendChild(details);
+                            } else {
+                                li.textContent = node.name;
+                            }
+                            li.addEventListener('click', e => {
+                                e.stopPropagation();
+                                // Remove previous selection
+                                document.querySelectorAll('#tree li.selected').forEach(el => el.classList.remove('selected'));
+                                li.classList.add('selected');
+                                const circle = document.querySelector("circle.node[data-id='" + id + "']");
+                                if (circle) {
+                                    showNodeInfo.call(circle, null, node);
+                                }
+                            });
+                            return li;
+                        }
+                        const ul = document.createElement('ul');
+                        roots.forEach(r => ul.appendChild(createItem(r.id)));
+                        container.appendChild(ul);
+                    }
+                    
+                    // Call buildTree after diagramData is loaded
+                    buildTree();
 
                     // Event handlers for toggles
                     document.getElementById("showOrbits").addEventListener("change", function() {
