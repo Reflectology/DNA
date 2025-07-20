@@ -11,6 +11,15 @@ export function activate(context: vscode.ExtensionContext) {
     const analyzer = new CodeAnalyzer();
     const treeProvider = new EntityTreeProvider();
     vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
+    const treeView = vscode.window.createTreeView('reflectologyEntities', { treeDataProvider: treeProvider });
+    context.subscriptions.push(treeView);
+    treeView.onDidChangeSelection(e => {
+        const item = e.selection[0];
+        if (item) {
+            ReflectologyVisualizer.highlightNode(item.node.id);
+            metricsProvider.showMetrics(item.node);
+        }
+    });
     const metricsProvider = new MetricsViewProvider(context);
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(MetricsViewProvider.viewType, metricsProvider));
 

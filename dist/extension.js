@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deactivate = exports.activate = void 0;
+exports.activate = activate;
+exports.deactivate = deactivate;
 const vscode = require("vscode");
 const diagramGenerator_1 = require("./diagramGenerator");
 const webviewPanel_1 = require("./webviewPanel");
@@ -12,6 +13,15 @@ function activate(context) {
     const analyzer = new codeAnalyzer_1.CodeAnalyzer();
     const treeProvider = new entityTreeProvider_1.EntityTreeProvider();
     vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
+    const treeView = vscode.window.createTreeView('reflectologyEntities', { treeDataProvider: treeProvider });
+    context.subscriptions.push(treeView);
+    treeView.onDidChangeSelection(e => {
+        const item = e.selection[0];
+        if (item) {
+            webviewPanel_1.ReflectologyVisualizer.highlightNode(item.node.id);
+            metricsProvider.showMetrics(item.node);
+        }
+    });
     const metricsProvider = new metricsView_1.MetricsViewProvider(context);
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(metricsView_1.MetricsViewProvider.viewType, metricsProvider));
     const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
@@ -58,7 +68,5 @@ function activate(context) {
         metricsProvider.showMetrics(node);
     });
 }
-exports.activate = activate;
 function deactivate() { }
-exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map
