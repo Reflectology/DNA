@@ -67,4 +67,17 @@ export class EntityTreeProvider implements vscode.TreeDataProvider<EntityTreeIte
             return a.name.localeCompare(b.name);
         });
     }
+
+    // Add this method to hook up selection/open
+    public registerOpenHandler(view: vscode.TreeView<EntityTreeItem>) {
+        view.onDidChangeSelection(e => {
+            const item = e.selection[0];
+            if (item) {
+                vscode.commands.executeCommand('reflectologyVisualizer.revealInEditor', item.node.id);
+            }
+        });
+        view.onDidChangeVisibility(() => { /* ... */ });
+        view.onDidExpandElement(() => { /* ... */ });
+        view.onDidCollapseElement(() => { /* ... */ });
+    }
 }

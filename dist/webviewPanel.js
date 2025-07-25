@@ -26,6 +26,10 @@ class ReflectologyVisualizer {
             else if (message.command === 'nodeSelected') {
                 ReflectologyVisualizer.nodeSelectedEmitter.fire(message.node);
             }
+            else if (message.command === 'revealInEditor' && message.nodeId) {
+                // Forward to extension host to reveal code
+                vscode.commands.executeCommand('reflectologyVisualizer.revealInEditor', message.nodeId);
+            }
         }, undefined, this._disposables);
         // Listen for when the panel is disposed
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -51,6 +55,8 @@ class ReflectologyVisualizer {
     static highlightNode(id) {
         if (ReflectologyVisualizer.currentPanel) {
             ReflectologyVisualizer.currentPanel._panel.webview.postMessage({ type: 'highlightNode', id });
+            // Also send zoomToNode message
+            ReflectologyVisualizer.currentPanel._panel.webview.postMessage({ type: 'zoomToNode', id });
         }
     }
     _updateWebview(diagramData) {
@@ -240,11 +246,11 @@ class ReflectologyVisualizer {
                             <details class="toggle-group" open>
                                 <summary>Display Options</summary>
                                 <div>
-                                    <label><input type="checkbox" id="showOrbits" checked>Show Orbits</label>
+                                    <label><input type="checkbox" id="showOrbits" checked>Show Module Groups</label>
                                     <label><input type="checkbox" id="showAxes" checked>Show Axes</label>
-                                    <label><input type="checkbox" id="highlightCanonical" checked>Highlight Canonical Forms</label>
-                                    <label><input type="checkbox" id="showUML">UML Class View</label>
-                                    <label><input type="checkbox" id="showFlowDependency">Flow Dependency</label>
+                                    <label><input type="checkbox" id="highlightCanonical" checked>Highlight Reference Implementations</label>
+                                    <label><input type="checkbox" id="showUML">Class Diagram</label>
+                                    <label><input type="checkbox" id="showFlowDependency">Data/Control Flow</label>
                                     <label><input type="checkbox" id="showLabels" checked>Show Labels</label>
                                 </div>
                             </details>
@@ -269,23 +275,23 @@ class ReflectologyVisualizer {
                         <div id="legend">
                             <div class="legend-item">
                                 <div class="legend-color" style="background-color: ${rgbToCSS(diagramData.config.orbitHighlightColor)}"></div>
-                                <span>Orbit</span>
+                                <span>Module Group / Cluster</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color" style="background-color: rgb(0, 170, 0)"></div>
-                                <span>Canonical Form</span>
+                                <span>Reference Implementation</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color" style="background-color: rgb(100, 100, 255)"></div>
-                                <span>Axiom 32: Hierarchical Structuring</span>
+                                <span>Hierarchy (Inheritance/Containment)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color" style="background-color: rgb(255, 120, 0)"></div>
-                                <span>Axiom 33: Causality & Correlation</span>
+                                <span>Dependency (Calls/Uses)</span>
                             </div>
                             <div class="legend-item">
                                 <div class="legend-color" style="background-color: rgb(0, 160, 0)"></div>
-                                <span>Axiom 40: Reflective Conjugate Duality</span>
+                                <span>Mutual Dependency (Cyclic Reference)</span>
                             </div>
                         </div>
                         <div id="nodeInfo">Click a node to see details</div>
@@ -317,6 +323,25 @@ class ReflectologyVisualizer {
                                 }
                             }
                         }
+                        else if (msg.type === 'zoomToNode') {
+                            const nodeData = diagramData.nodes.find(n => n.id === msg.id);
+                            if (nodeData && typeof nodeData.x === 'number' && typeof nodeData.y === 'number') {
+                                // Zoom to node position
+                                const svgElem = document.querySelector("#diagram svg");
+                                const width = svgElem.viewBox.baseVal.width || svgElem.clientWidth;
+                                const height = svgElem.viewBox.baseVal.height || svgElem.clientHeight;
+                                const zoomScale = 2.5; // Zoom in factor
+                                const tx = width / 2 - nodeData.x * zoomScale;
+                                const ty = height / 2 - nodeData.y * zoomScale;
+                                const transform = d3.zoomIdentity
+                                    .translate(tx, ty)
+                                    .scale(zoomScale);
+                                d3.select(svgElem)
+                                    .transition()
+                                    .duration(600)
+                                    .call(zoom.transform, transform);
+                            }
+                        }
                     });
 
                     // Configuration and data setup
@@ -326,11 +351,11 @@ class ReflectologyVisualizer {
                     const diagramData = ${JSON.stringify(diagramData)};
 
                     
-                    // Define colors for axioms
+                    // Update axiomColors mapping for legend and tooltips
                     const axiomColors = {
-                        "32": "rgb(100, 100, 255)", // Hierarchical Structuring (blue)
-                        "33": "rgb(255, 120, 0)",   // Causality & Correlation (orange)
-                        "40": "rgb(0, 160, 0)",     // Reflective Conjugate Duality (green)
+                        "32": "rgb(100, 100, 255)", // Hierarchy (blue)
+                        "33": "rgb(255, 120, 0)",   // Dependency (orange)
+                        "40": "rgb(0, 160, 0)",     // Mutual Dependency (green)
                         "default": "rgb(128, 128, 128)" // Default (gray)
                     };
                     
@@ -657,22 +682,33 @@ class ReflectologyVisualizer {
                         let info = \`<strong>\${d.name}</strong> (\${d.type || "unknown"})<br>\`;
                         
                         if (d.canonical) {
-                            info += "<strong style='color:green'>Canonical Form</strong><br>";
+                            info += "<strong style='color:green'>Reference Implementation</strong><br>";
                         }
                         
                         if (d.goodness !== undefined) {
-                            info += \`Goodness: \${d.goodness.toFixed(2)}<br>\`;
+                            info += \`Maintainability: \${d.goodness.toFixed(2)}<br>\`;
                         }
                         
                         // Show metrics
                         info += "<strong>Metrics:</strong><br>";
                         for (const [key, value] of Object.entries(d.metrics || {})) {
-                            info += \`· \${key}: \${value}<br>\`;
+                            // Map metric keys to SWE terms
+                            let label = key;
+                            if (key === "utility") label = "Function Count";
+                            if (key === "cost") label = "Complexity";
+                            if (key === "goodness") label = "Maintainability";
+                            info += \`· \${label}: \${value}<br>\`;
                         }
                         
                         // Show axioms
                         if (d.axioms && d.axioms.length > 0) {
-                            info += "<strong>Axioms:</strong> " + d.axioms.join(", ");
+                            // Map axiom numbers to SWE terms
+                            const axiomMap = {
+                                "32": "Hierarchy",
+                                "33": "Dependency",
+                                "40": "Mutual Dependency"
+                            };
+                            info += "<strong>Relationships:</strong> " + d.axioms.map(ax => axiomMap[ax] || ax).join(", ");
                         }
                         
                         infoDiv.innerHTML = info;
@@ -899,6 +935,11 @@ class ReflectologyVisualizer {
                     setTimeout(() => {
                         document.getElementById("zoomToFit").click();
                     }, 500);
+
+                    // Add double-click handler to nodes
+                    node.on("dblclick", function(event, d) {
+                        vscode.postMessage({ command: 'revealInEditor', nodeId: d.id });
+                    });
                 </script>
             </body>
             </html>

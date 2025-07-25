@@ -14,6 +14,7 @@ function activate(context) {
     vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
     const treeView = vscode.window.createTreeView('reflectologyEntities', { treeDataProvider: treeProvider });
     context.subscriptions.push(treeView);
+    treeProvider.registerOpenHandler?.(treeView);
     treeView.onDidChangeSelection(e => {
         const item = e.selection[0];
         if (item) {
@@ -66,6 +67,46 @@ function activate(context) {
     webviewPanel_1.ReflectologyVisualizer.onNodeSelected(node => {
         metricsProvider.showMetrics(node);
     });
+    // Command to reveal code location for a node/entity
+    context.subscriptions.push(vscode.commands.registerCommand('reflectologyVisualizer.revealInEditor', async (nodeId) => {
+        // Find the file entity for the nodeId
+        // You may want to keep a map of nodeId -> file path for efficiency
+        const allNodes = treeProvider['diagramData']?.nodes || [];
+        const node = allNodes.find((n) => n.id === nodeId);
+        if (node && node.type === 'file' && node.name) {
+            // Try to find the file in the workspace
+            const folders = vscode.workspace.workspaceFolders;
+            if (folders) {
+                const folderPath = folders[0].uri.fsPath;
+                const filePath = await findFileInWorkspace(folderPath, node.name);
+                if (filePath) {
+                    const doc = await vscode.workspace.openTextDocument(filePath);
+                    await vscode.window.showTextDocument(doc, { preview: false });
+                }
+            }
+        }
+        // Optionally, handle function/class nodes by opening their parent file and searching for the symbol
+    }));
+    // Helper to find file by name in workspace
+    async function findFileInWorkspace(dir, fileName) {
+        const fs = require('fs');
+        const path = require('path');
+        const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name === 'node_modules' || entry.name.startsWith('.'))
+                    continue;
+                const found = await findFileInWorkspace(fullPath, fileName);
+                if (found)
+                    return found;
+            }
+            else if (entry.name === fileName) {
+                return fullPath;
+            }
+        }
+        return undefined;
+    }
 }
 exports.activate = activate;
 function deactivate() { }

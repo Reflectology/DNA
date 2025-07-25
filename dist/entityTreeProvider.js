@@ -61,6 +61,18 @@ class EntityTreeProvider {
             return a.name.localeCompare(b.name);
         });
     }
+    // Add this method to hook up selection/open
+    registerOpenHandler(view) {
+        view.onDidChangeSelection(e => {
+            const item = e.selection[0];
+            if (item) {
+                vscode.commands.executeCommand('reflectologyVisualizer.revealInEditor', item.node.id);
+            }
+        });
+        view.onDidChangeVisibility(() => { });
+        view.onDidExpandElement(() => { });
+        view.onDidCollapseElement(() => { });
+    }
 }
 exports.EntityTreeProvider = EntityTreeProvider;
 //# sourceMappingURL=entityTreeProvider.js.map
