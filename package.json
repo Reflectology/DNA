@@ -40,14 +40,14 @@
                 {
                     "id": "reflectology",
                     "title": "Reflectology",
-                    "icon": "resources/icon.svg"
+                    "icon": "resources/mower.svg"
                 }
             ],
             "panel": [
                 {
                     "id": "reflectologyPanel",
                     "title": "Reflectology",
-                    "icon": "resources/icon.svg"
+                    "icon": "resources/mower.svg"
                 }
             ]
         },
