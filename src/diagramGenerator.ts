@@ -134,7 +134,7 @@ export class DiagramGenerator {
             links,
             config: mergedConfig,
             metadata: {
-                configSpace: "ReflectologyConfigSpace",
+                configSpace: "ConfigSpace",
                 groupActions: this.extractGroupActions(codeStructure),
                 axioms: Object.keys(axiomsMap),
                 canonicalForms: nodes.filter(n => n.canonical).map(n => n.id)

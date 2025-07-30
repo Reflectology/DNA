@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ReflectologyVisualizer = void 0;
+exports.mower = void 0;
 const vscode = require("vscode");
-class ReflectologyVisualizer {
+class mower {
     constructor(panel, diagramData, state) {
         this._disposables = [];
         this._panel = panel;
@@ -10,7 +10,7 @@ class ReflectologyVisualizer {
         // Set the webview's content
         this._updateWebview(diagramData);
         this._sendTheme();
-        const saved = this._state.get(ReflectologyVisualizer.STATE_KEY, {});
+        const saved = this._state.get(mower.STATE_KEY, {});
         if (saved) {
             this._panel.webview.postMessage({ type: 'initialize', state: saved });
         }
@@ -19,16 +19,16 @@ class ReflectologyVisualizer {
         }));
         this._panel.webview.onDidReceiveMessage(message => {
             if (message.command === 'updateSetting') {
-                const current = this._state.get(ReflectologyVisualizer.STATE_KEY, {});
+                const current = this._state.get(mower.STATE_KEY, {});
                 current[message.key] = message.value;
-                this._state.update(ReflectologyVisualizer.STATE_KEY, current);
+                this._state.update(mower.STATE_KEY, current);
             }
             else if (message.command === 'nodeSelected') {
-                ReflectologyVisualizer.nodeSelectedEmitter.fire(message.node);
+                mower.nodeSelectedEmitter.fire(message.node);
             }
             else if (message.command === 'revealInEditor' && message.nodeId) {
                 // Forward to extension host to reveal code
-                vscode.commands.executeCommand('reflectologyVisualizer.revealInEditor', message.nodeId);
+                vscode.commands.executeCommand('mower.revealInEditor', message.nodeId);
             }
         }, undefined, this._disposables);
         // Listen for when the panel is disposed
@@ -37,30 +37,30 @@ class ReflectologyVisualizer {
     static createOrShow(diagramData, state) {
         const column = vscode.window.activeTextEditor?.viewColumn || vscode.ViewColumn.One;
         // If we already have a panel, show it
-        if (ReflectologyVisualizer.currentPanel) {
-            ReflectologyVisualizer.currentPanel._panel.reveal(column);
-            ReflectologyVisualizer.currentPanel._state = state;
-            ReflectologyVisualizer.currentPanel._updateWebview(diagramData);
-            const saved = state.get(ReflectologyVisualizer.STATE_KEY, {});
-            ReflectologyVisualizer.currentPanel._panel.webview.postMessage({ type: 'initialize', state: saved });
+        if (mower.currentPanel) {
+            mower.currentPanel._panel.reveal(column);
+            mower.currentPanel._state = state;
+            mower.currentPanel._updateWebview(diagramData);
+            const saved = state.get(mower.STATE_KEY, {});
+            mower.currentPanel._panel.webview.postMessage({ type: 'initialize', state: saved });
             return;
         }
         // Otherwise, create a new panel
-        const panel = vscode.window.createWebviewPanel('reflectologyDiagram', 'Reflectology Code Structure', column, {
+        const panel = vscode.window.createWebviewPanel('m0werDiagram', 'M0WER Visualization', column, {
             enableScripts: true,
             retainContextWhenHidden: true
         });
-        ReflectologyVisualizer.currentPanel = new ReflectologyVisualizer(panel, diagramData, state);
+        mower.currentPanel = new mower(panel, diagramData, state);
     }
     static highlightNode(id) {
-        if (ReflectologyVisualizer.currentPanel) {
-            ReflectologyVisualizer.currentPanel._panel.webview.postMessage({ type: 'highlightNode', id });
+        if (mower.currentPanel) {
+            mower.currentPanel._panel.webview.postMessage({ type: 'highlightNode', id });
             // Also send zoomToNode message
-            ReflectologyVisualizer.currentPanel._panel.webview.postMessage({ type: 'zoomToNode', id });
+            mower.currentPanel._panel.webview.postMessage({ type: 'zoomToNode', id });
         }
     }
     _updateWebview(diagramData) {
-        this._panel.title = 'Reflectology Code Structure';
+        this._panel.title = 'm0wer Code Structure';
         this._panel.webview.html = this._getHtmlForWebview(diagramData);
     }
     _sendTheme(theme = vscode.window.activeColorTheme) {
@@ -78,7 +78,7 @@ class ReflectologyVisualizer {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Reflectology Code Structure</title>
+                <title>m0wer Code Structure</title>
                 <script src="https://d3js.org/d3.v7.min.js"></script>
                 <style>
                     body, html { 
@@ -946,7 +946,7 @@ class ReflectologyVisualizer {
         `;
     }
     dispose() {
-        ReflectologyVisualizer.currentPanel = undefined;
+        mower.currentPanel = undefined;
         // Clean up our resources
         this._panel.dispose();
         while (this._disposables.length) {
@@ -957,8 +957,8 @@ class ReflectologyVisualizer {
         }
     }
 }
-exports.ReflectologyVisualizer = ReflectologyVisualizer;
-ReflectologyVisualizer.STATE_KEY = 'reflectologySettings';
-ReflectologyVisualizer.nodeSelectedEmitter = new vscode.EventEmitter();
-ReflectologyVisualizer.onNodeSelected = ReflectologyVisualizer.nodeSelectedEmitter.event;
+exports.mower = mower;
+mower.STATE_KEY = 'm0werSettings';
+mower.nodeSelectedEmitter = new vscode.EventEmitter();
+mower.onNodeSelected = mower.nodeSelectedEmitter.event;
 //# sourceMappingURL=webviewPanel.js.map

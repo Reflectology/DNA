@@ -1,30 +1,26 @@
 import * as vscode from 'vscode';
 import { DiagramGenerator } from './diagramGenerator';
-import { ReflectologyVisualizer } from './webviewPanel';
+import { mower } from './webviewPanel';
 import { CodeAnalyzer } from './codeAnalyzer';
 import { TokenAdapter } from './codeAnalyzer';
 import { EntityTreeProvider } from './entityTreeProvider';
-import { MetricsViewProvider } from './metricsView';
 
 export function activate(context: vscode.ExtensionContext) {
     const generator = new DiagramGenerator();
     const analyzer = new CodeAnalyzer();
     const treeProvider = new EntityTreeProvider();
-    vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
-    const treeView = vscode.window.createTreeView('reflectologyEntities', { treeDataProvider: treeProvider });
+    vscode.window.registerTreeDataProvider('m0werEntities', treeProvider);
+    const treeView = vscode.window.createTreeView('m0werEntities', { treeDataProvider: treeProvider });
     context.subscriptions.push(treeView);
     treeProvider.registerOpenHandler?.(treeView);
     treeView.onDidChangeSelection(e => {
         const item = e.selection[0];
         if (item) {
-            ReflectologyVisualizer.highlightNode(item.node.id);
-            metricsProvider.showMetrics(item.node);
-        }
+            mower.highlightNode(item.node.id);
+                    }
     });
-    const metricsProvider = new MetricsViewProvider(context);
-    context.subscriptions.push(vscode.window.registerWebviewViewProvider(MetricsViewProvider.viewType, metricsProvider));
 
-    const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
+    const disposable = vscode.commands.registerCommand('mower.generateDiagram', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             vscode.window.showErrorMessage('No workspace folder open.');
@@ -35,13 +31,13 @@ export function activate(context: vscode.ExtensionContext) {
         const codeStructure = await analyzer.analyzeWorkspace();
         const diagramData = generator.generateDiagram(codeStructure);
         treeProvider.refresh(diagramData);
-        ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
-        vscode.commands.executeCommand('workbench.view.extension.reflectology');
+        mower.createOrShow(diagramData, context.workspaceState);
+        vscode.commands.executeCommand('workbench.view.extension.m0wer');
     });
 
     // Register a command for the token-based visualization
     const tokenVisualizeCommand = vscode.commands.registerCommand(
-        'reflectologyVisualizer.visualizeAnyCode', 
+        'mower.visualizeAnyCode', 
         async () => {
             try {
                 vscode.window.withProgress({
@@ -62,8 +58,8 @@ export function activate(context: vscode.ExtensionContext) {
                     treeProvider.refresh(diagramData);
 
                     // Create a panel with the visualization
-                    ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
-                    vscode.commands.executeCommand('workbench.view.extension.reflectology');
+                    mower.createOrShow(diagramData, context.workspaceState);
+                    vscode.commands.executeCommand('workbench.view.extension.m0wer');
                     
                     return true;
                 });
@@ -76,13 +72,12 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
     context.subscriptions.push(tokenVisualizeCommand);
 
-    ReflectologyVisualizer.onNodeSelected(node => {
-        metricsProvider.showMetrics(node);
+    mower.onNodeSelected(node => {
     });
 
     // Command to reveal code location for a node/entity
     context.subscriptions.push(
-        vscode.commands.registerCommand('reflectologyVisualizer.revealInEditor', async (nodeId: string) => {
+        vscode.commands.registerCommand('mower.revealInEditor', async (nodeId: string) => {
             // Find the file entity for the nodeId
             // You may want to keep a map of nodeId -> file path for efficiency
             const allNodes = treeProvider['diagramData']?.nodes || [];

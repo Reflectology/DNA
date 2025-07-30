@@ -1,9 +1,9 @@
 {
-    "name": "reflectology-visualizer",
-    "displayName": "Reflectology Code Visualizer",
-    "description": "Generates intricate diagrams from codebases using reflectology principles",
+    "name": "m0wer-visualizer",
+    "displayName": "m0wer Code Visualizer",
+    "description": "Generates intricate diagrams from codebases using M0WER principles",
     "version": "0.1.0",
-    "publisher": "your-publisher-name",
+    "publisher": "M0WER.com",
     "engines": {
         "vscode": "^1.80.0"
     },
@@ -17,20 +17,20 @@
     "contributes": {
         "commands": [
             {
-                "command": "reflectologyVisualizer.visualizeAnyCode",
-                "title": "Visualize Any Code Structure Using Reflectology",
-                "category": "Reflectology"
+                "command": "mower.visualizeAnyCode",
+                "title": "Visualize Any Code Structure Using m0wer",
+                "category": "m0wer"
             },
             {
-                "command": "reflectologyVisualizer.generateDiagram",
-                "title": "Generate Reflectology Diagram",
-                "category": "Reflectology"
+                "command": "mower.generateDiagram",
+                "title": "Generate M0WER Diagram",
+                "category": "m0wer"
             }
         ],
         "menus": {
             "explorer/context": [
                 {
-                    "command": "reflectologyVisualizer.visualizeAnyCode",
+                    "command": "mower.visualizeAnyCode",
                     "group": "navigation"
                 }
             ]
@@ -38,33 +38,28 @@
         "viewsContainers": {
             "activitybar": [
                 {
-                    "id": "reflectology",
-                    "title": "Reflectology",
+                    "id": "m0wer",
+                    "title": "m0wer",
                     "icon": "resources/mower.svg"
                 }
             ],
             "panel": [
                 {
-                    "id": "reflectologyPanel",
-                    "title": "Reflectology",
+                    "id": "m0werPanel",
+                    "title": "m0wer",
                     "icon": "resources/mower.svg"
                 }
             ]
         },
         "views": {
-            "reflectology": [
+            "m0wer": [
                 {
-                    "id": "reflectologyEntities",
-                    "name": "Entities"
-                }
-            ],
-            "reflectologyPanel": [
-                {
-                    "id": "reflectologyMetrics",
-                    "name": "Metrics"
+                    "id": "m0werEntities",
+                    "name": "Entities",
+                    "icon": "resources/mower.svg"
                 }
             ]
-        }
+                   }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

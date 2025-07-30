@@ -1,30 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deactivate = exports.activate = void 0;
+exports.activate = activate;
+exports.deactivate = deactivate;
 const vscode = require("vscode");
 const diagramGenerator_1 = require("./diagramGenerator");
 const webviewPanel_1 = require("./webviewPanel");
 const codeAnalyzer_1 = require("./codeAnalyzer");
 const entityTreeProvider_1 = require("./entityTreeProvider");
-const metricsView_1 = require("./metricsView");
 function activate(context) {
     const generator = new diagramGenerator_1.DiagramGenerator();
     const analyzer = new codeAnalyzer_1.CodeAnalyzer();
     const treeProvider = new entityTreeProvider_1.EntityTreeProvider();
-    vscode.window.registerTreeDataProvider('reflectologyEntities', treeProvider);
-    const treeView = vscode.window.createTreeView('reflectologyEntities', { treeDataProvider: treeProvider });
+    vscode.window.registerTreeDataProvider('m0werEntities', treeProvider);
+    const treeView = vscode.window.createTreeView('m0werEntities', { treeDataProvider: treeProvider });
     context.subscriptions.push(treeView);
     treeProvider.registerOpenHandler?.(treeView);
     treeView.onDidChangeSelection(e => {
         const item = e.selection[0];
         if (item) {
-            webviewPanel_1.ReflectologyVisualizer.highlightNode(item.node.id);
-            metricsProvider.showMetrics(item.node);
+            webviewPanel_1.mower.highlightNode(item.node.id);
         }
     });
-    const metricsProvider = new metricsView_1.MetricsViewProvider(context);
-    context.subscriptions.push(vscode.window.registerWebviewViewProvider(metricsView_1.MetricsViewProvider.viewType, metricsProvider));
-    const disposable = vscode.commands.registerCommand('reflectologyVisualizer.generateDiagram', async () => {
+    const disposable = vscode.commands.registerCommand('mower.generateDiagram', async () => {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         if (!workspaceFolders) {
             vscode.window.showErrorMessage('No workspace folder open.');
@@ -34,11 +31,11 @@ function activate(context) {
         const codeStructure = await analyzer.analyzeWorkspace();
         const diagramData = generator.generateDiagram(codeStructure);
         treeProvider.refresh(diagramData);
-        webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
-        vscode.commands.executeCommand('workbench.view.extension.reflectology');
+        webviewPanel_1.mower.createOrShow(diagramData, context.workspaceState);
+        vscode.commands.executeCommand('workbench.view.extension.m0wer');
     });
     // Register a command for the token-based visualization
-    const tokenVisualizeCommand = vscode.commands.registerCommand('reflectologyVisualizer.visualizeAnyCode', async () => {
+    const tokenVisualizeCommand = vscode.commands.registerCommand('mower.visualizeAnyCode', async () => {
         try {
             vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
@@ -53,8 +50,8 @@ function activate(context) {
                 const diagramData = generator.generateDiagram(codeStructure);
                 treeProvider.refresh(diagramData);
                 // Create a panel with the visualization
-                webviewPanel_1.ReflectologyVisualizer.createOrShow(diagramData, context.workspaceState);
-                vscode.commands.executeCommand('workbench.view.extension.reflectology');
+                webviewPanel_1.mower.createOrShow(diagramData, context.workspaceState);
+                vscode.commands.executeCommand('workbench.view.extension.m0wer');
                 return true;
             });
         }
@@ -64,11 +61,10 @@ function activate(context) {
     });
     context.subscriptions.push(disposable);
     context.subscriptions.push(tokenVisualizeCommand);
-    webviewPanel_1.ReflectologyVisualizer.onNodeSelected(node => {
-        metricsProvider.showMetrics(node);
+    webviewPanel_1.mower.onNodeSelected(node => {
     });
     // Command to reveal code location for a node/entity
-    context.subscriptions.push(vscode.commands.registerCommand('reflectologyVisualizer.revealInEditor', async (nodeId) => {
+    context.subscriptions.push(vscode.commands.registerCommand('mower.revealInEditor', async (nodeId) => {
         // Find the file entity for the nodeId
         // You may want to keep a map of nodeId -> file path for efficiency
         const allNodes = treeProvider['diagramData']?.nodes || [];
@@ -108,7 +104,5 @@ function activate(context) {
         return undefined;
     }
 }
-exports.activate = activate;
 function deactivate() { }
-exports.deactivate = deactivate;
 //# sourceMappingURL=extension.js.map

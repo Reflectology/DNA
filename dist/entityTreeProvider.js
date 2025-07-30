@@ -66,7 +66,7 @@ class EntityTreeProvider {
         view.onDidChangeSelection(e => {
             const item = e.selection[0];
             if (item) {
-                vscode.commands.executeCommand('reflectologyVisualizer.revealInEditor', item.node.id);
+                vscode.commands.executeCommand('mower.revealInEditor', item.node.id);
             }
         });
         view.onDidChangeVisibility(() => { });
