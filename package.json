@@ -19,12 +19,14 @@
             {
                 "command": "mower.visualizeAnyCode",
                 "title": "Visualize Any Code Structure Using m0wer",
-                "category": "m0wer"
+                "category": "m0wer",
+                "icon": "$(eye)"
             },
             {
                 "command": "mower.generateDiagram",
                 "title": "Generate M0WER Diagram",
-                "category": "m0wer"
+                "category": "m0wer",
+                "icon": "$(graph)"
             }
         ],
         "menus": {
@@ -32,6 +34,18 @@
                 {
                     "command": "mower.visualizeAnyCode",
                     "group": "navigation"
+                }
+            ],
+            "view/title": [
+                {
+                    "command": "mower.visualizeAnyCode",
+                    "when": "view == m0werEntities",
+                    "group": "navigation"
+                },
+                {
+                    "command": "mower.generateDiagram",
+                    "when": "view == m0werEntities",
+                    "group": "navigation@2"
                 }
             ]
         },
