@@ -147,24 +147,32 @@ export class DiagramGenerator {
      */
     private extractAxioms(codeStructure: CodeStructure): Record<string, string> {
         const axiomMap: Record<string, string> = {};
-        
-        // Extract axioms from entities and relationships
-        for (const entity of codeStructure.entities) {
-            if (entity.axioms) {
-                for (const axiom of entity.axioms) {
-                    if (!axiomMap[axiom]) {
-                        // Map axiom numbers to their names according to reflectology.md
-                        const axiomNames: Record<string, string> = {
-                            "32": "Hierarchical Structuring",
-                            "33": "Causality & Correlation",
-                            "40": "Reflective Conjugate Duality"
-                        };
-                        axiomMap[axiom] = axiomNames[axiom] || `Axiom ${axiom}`;
-                    }
+
+        // Mapping of known axiom numbers to their descriptive names
+        const axiomNames: Record<string, string> = {
+            "32": "Hierarchical Structuring",
+            "33": "Causality & Correlation",
+            "40": "Reflective Conjugate Duality"
+        };
+
+        // Helper to add axioms from a source collection
+        const addAxioms = (axioms?: string[]) => {
+            if (!axioms) return;
+            for (const axiom of axioms) {
+                if (!axiomMap[axiom]) {
+                    axiomMap[axiom] = axiomNames[axiom] || `Axiom ${axiom}`;
                 }
             }
+        };
+
+        // Extract axioms from entities and relationships
+        for (const entity of codeStructure.entities) {
+            addAxioms(entity.axioms);
         }
-        
+        for (const rel of codeStructure.relationships) {
+            addAxioms(rel.axioms);
+        }
+
         return axiomMap;
     }
     
