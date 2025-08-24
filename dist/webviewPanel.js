@@ -71,7 +71,7 @@ class mower {
     }
     _getHtmlForWebview(diagramData) {
         // Convert RGB to CSS color string
-        const rgbToCSS = (rgb) => `rgb(${Math.round(rgb.r * 255)}, ${Math.round(rgb.g * 255)}, ${Math.round(rgb.b * 255)})`;
+        const rgbToCSS = (rgb) => "rgb(" + Math.round(rgb.r * 255) + ", " + Math.round(rgb.g * 255) + ", " + Math.round(rgb.b * 255) + ")";
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -79,7 +79,7 @@ class mower {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>m0wer Code Structure</title>
-                <script src="https://d3js.org/d3.v7.min.js"></script>
+                <!-- Using native W3C standards instead of D3.js -->
                 <style>
                     body, html { 
                         margin: 0; 
@@ -326,20 +326,19 @@ class mower {
                         else if (msg.type === 'zoomToNode') {
                             const nodeData = diagramData.nodes.find(n => n.id === msg.id);
                             if (nodeData && typeof nodeData.x === 'number' && typeof nodeData.y === 'number') {
-                                // Zoom to node position
+                                // Zoom to node position using native W3C standards
                                 const svgElem = document.querySelector("#diagram svg");
+                                const mainGroup = svgElem.querySelector('.main-group');
                                 const width = svgElem.viewBox.baseVal.width || svgElem.clientWidth;
                                 const height = svgElem.viewBox.baseVal.height || svgElem.clientHeight;
-                                const zoomScale = 2.5; // Zoom in factor
+                                const zoomScale = 2.5;
                                 const tx = width / 2 - nodeData.x * zoomScale;
                                 const ty = height / 2 - nodeData.y * zoomScale;
-                                const transform = d3.zoomIdentity
-                                    .translate(tx, ty)
-                                    .scale(zoomScale);
-                                d3.select(svgElem)
-                                    .transition()
-                                    .duration(600)
-                                    .call(zoom.transform, transform);
+                                
+                                // Use CSS transforms for smooth animation
+                                mainGroup.style.transition = 'transform 0.6s ease-in-out';
+                                mainGroup.style.transform = "translate(" + tx + "px, " + ty + "px) scale(" + zoomScale + ")";
+                                currentZoom = { tx, ty, scale: zoomScale };
                             }
                         }
                     });
@@ -359,109 +358,266 @@ class mower {
                         "default": "rgb(128, 128, 128)" // Default (gray)
                     };
                     
-                    // Create SVG
-                    const svg = d3.select("#diagram")
-                        .append("svg")
-                        .attr("width", "100%")
-                        .attr("height", "100%")
-                        .attr("viewBox", [0, 0, width, height]);
+                    // Create SVG using native DOM APIs
+                    const diagramDiv = document.getElementById('diagram');
+                    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                    svg.setAttribute('width', '100%');
+                    svg.setAttribute('height', '100%');
+                    svg.setAttribute('viewBox', "0 0 " + width + " " + height);
+                    diagramDiv.appendChild(svg);
                     
-                    // Add zoom capabilities
-                    const zoom = d3.zoom()
-                        .scaleExtent([0.1, 10])
-                        .on("zoom", (event) => {
-                            g.attr("transform", event.transform);
+                    // Track zoom state
+                    let currentZoom = { tx: 0, ty: 0, scale: 1 };
+                    let isDragging = false;
+                    let dragStart = { x: 0, y: 0 };
+                    
+                    // Native zoom and pan using pointer events
+                    function setupZoomPan(svg) {
+                        const mainGroup = svg.querySelector('.main-group');
+                        
+                        svg.addEventListener('wheel', (event) => {
+                            event.preventDefault();
+                            const rect = svg.getBoundingClientRect();
+                            const x = event.clientX - rect.left;
+                            const y = event.clientY - rect.top;
+                            const delta = event.deltaY > 0 ? 0.9 : 1.1;
+                            
+                            currentZoom.scale = Math.max(0.1, Math.min(10, currentZoom.scale * delta));
+                            
+                            // Zoom toward mouse position
+                            const dx = (x - width/2) * (delta - 1);
+                            const dy = (y - height/2) * (delta - 1);
+                            currentZoom.tx -= dx;
+                            currentZoom.ty -= dy;
+                            
+                            mainGroup.style.transform = "translate(" + currentZoom.tx + "px, " + currentZoom.ty + "px) scale(" + currentZoom.scale + ")";
                         });
+                        
+                        svg.addEventListener('pointerdown', (event) => {
+                            if (event.target === svg || event.target === mainGroup) {
+                                isDragging = true;
+                                dragStart = { x: event.clientX, y: event.clientY };
+                                svg.style.cursor = 'grabbing';
+                                event.preventDefault();
+                            }
+                        });
+                        
+                        svg.addEventListener('pointermove', (event) => {
+                            if (isDragging) {
+                                const dx = event.clientX - dragStart.x;
+                                const dy = event.clientY - dragStart.y;
+                                currentZoom.tx += dx / currentZoom.scale;
+                                currentZoom.ty += dy / currentZoom.scale;
+                                mainGroup.style.transform = "translate(" + currentZoom.tx + "px, " + currentZoom.ty + "px) scale(" + currentZoom.scale + ")";
+                                dragStart = { x: event.clientX, y: event.clientY };
+                            }
+                        });
+                        
+                        svg.addEventListener('pointerup', () => {
+                            isDragging = false;
+                            svg.style.cursor = 'grab';
+                        });
+                        
+                        svg.style.cursor = 'grab';
+                    }
                     
-                    svg.call(zoom);
+                    // Create arrow marker for flow dependencies using native APIs
+                    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                    marker.setAttribute('id', 'arrow');
+                    marker.setAttribute('viewBox', '0 -5 10 10');
+                    marker.setAttribute('refX', '15');
+                    marker.setAttribute('refY', '0');
+                    marker.setAttribute('markerWidth', '6');
+                    marker.setAttribute('markerHeight', '6');
+                    marker.setAttribute('orient', 'auto');
                     
-                    // Create arrow marker for flow dependencies
-                    svg.append("defs").append("marker")
-                        .attr("id", "arrow")
-                        .attr("viewBox", "0 -5 10 10")
-                        .attr("refX", 15)
-                        .attr("refY", 0)
-                        .attr("markerWidth", 6)
-                        .attr("markerHeight", 6)
-                        .attr("orient", "auto")
-                        .append("path")
-                        .attr("d", "M0,-5L10,0L0,5")
-                        .attr("fill", "#666");
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', 'M0,-5L10,0L0,5');
+                    path.setAttribute('fill', '#666');
+                    marker.appendChild(path);
+                    defs.appendChild(marker);
+                    svg.appendChild(defs);
                     
                     // Create main group for zoom/pan
-                    const g = svg.append("g");
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.classList.add('main-group');
+                    svg.appendChild(g);
                     
-                    // Add background grid if config specifies it
+                    // Setup zoom and pan functionality
+                    setupZoomPan(svg);
+                    
+                    // Add background grid if config specifies it using native APIs
                     if (config.showGrid) {
                         const gridColor = "${rgbToCSS(diagramData.config.gridColor)}";
-                        const grid = g.append("g").attr("class", "grid");
+                        const grid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        grid.classList.add('grid');
                         
                         const gridSize = 50;
                         const numHLines = Math.ceil(height / gridSize);
                         const numVLines = Math.ceil(width / gridSize);
                         
                         for (let i = 0; i < numHLines; i++) {
-                            grid.append("line")
-                                .attr("x1", 0)
-                                .attr("y1", i * gridSize)
-                                .attr("x2", width)
-                                .attr("y2", i * gridSize)
-                                .attr("stroke", gridColor)
-                                .attr("stroke-width", 0.5);
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', '0');
+                            line.setAttribute('y1', i * gridSize);
+                            line.setAttribute('x2', width);
+                            line.setAttribute('y2', i * gridSize);
+                            line.setAttribute('stroke', gridColor);
+                            line.setAttribute('stroke-width', '0.5');
+                            grid.appendChild(line);
                         }
                         
                         for (let i = 0; i < numVLines; i++) {
-                            grid.append("line")
-                                .attr("x1", i * gridSize)
-                                .attr("y1", 0)
-                                .attr("x2", i * gridSize)
-                                .attr("y2", height)
-                                .attr("stroke", gridColor)
-                                .attr("stroke-width", 0.5);
+                            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            line.setAttribute('x1', i * gridSize);
+                            line.setAttribute('y1', '0');
+                            line.setAttribute('x2', i * gridSize);
+                            line.setAttribute('y2', height);
+                            line.setAttribute('stroke', gridColor);
+                            line.setAttribute('stroke-width', '0.5');
+                            grid.appendChild(line);
                         }
+                        g.appendChild(grid);
                     }
                     
-                    // Add axes if config specifies it
+                    // Add axes if config specifies it using native APIs
                     if (config.showAxes) {
                         const axisColor = "${rgbToCSS(diagramData.config.axisColor)}";
-                        const axes = g.append("g").attr("class", "axes");
+                        const axes = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                        axes.classList.add('axes');
                         
                         // X axis
-                        axes.append("line")
-                            .attr("x1", 0)
-                            .attr("y1", height / 2)
-                            .attr("x2", width)
-                            .attr("y2", height / 2)
-                            .attr("stroke", axisColor)
-                            .attr("stroke-width", 1);
+                        const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        xAxis.setAttribute('x1', '0');
+                        xAxis.setAttribute('y1', height / 2);
+                        xAxis.setAttribute('x2', width);
+                        xAxis.setAttribute('y2', height / 2);
+                        xAxis.setAttribute('stroke', axisColor);
+                        xAxis.setAttribute('stroke-width', '1');
+                        axes.appendChild(xAxis);
                         
                         // Y axis
-                        axes.append("line")
-                            .attr("x1", width / 2)
-                            .attr("y1", 0)
-                            .attr("x2", width / 2)
-                            .attr("y2", height)
-                            .attr("stroke", axisColor)
-                            .attr("stroke-width", 1);
+                        const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        yAxis.setAttribute('x1', width / 2);
+                        yAxis.setAttribute('y1', '0');
+                        yAxis.setAttribute('x2', width / 2);
+                        yAxis.setAttribute('y2', height);
+                        yAxis.setAttribute('stroke', axisColor);
+                        yAxis.setAttribute('stroke-width', '1');
+                        axes.appendChild(yAxis);
+                        
+                        g.appendChild(axes);
                     }
 
-                    // Draw UML containers group (initially hidden)
-                    const umlContainers = g.append("g")
-                        .attr("class", "uml-containers")
-                        .style("display", "none");
+                    // Draw UML containers group (initially hidden) using native APIs
+                    const umlContainers = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    umlContainers.classList.add('uml-containers');
+                    umlContainers.style.display = 'none';
+                    g.appendChild(umlContainers);
 
-                    // Draw flow dependency arrows group (initially hidden)
-                    const flowDependencies = g.append("g")
-                        .attr("class", "flow-dependencies")
-                        .style("display", "none");
+                    // Draw flow dependency arrows group (initially hidden) using native APIs
+                    const flowDependencies = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    flowDependencies.classList.add('flow-dependencies');
+                    flowDependencies.style.display = 'none';
+                    g.appendChild(flowDependencies);
 
-                    // Initialize the force simulation
-                    const simulation = d3.forceSimulation(diagramData.nodes)
-                        .force("link", d3.forceLink(diagramData.links)
-                            .id(d => d.id)
-                            .distance(d => 100 / (d.weight || 1)))
-                        .force("charge", d3.forceManyBody().strength(-300))
-                        .force("center", d3.forceCenter(width / 2, height / 2));
+                    // Simple physics-based layout using native JavaScript instead of D3 force simulation
+                    class SimplePhysics {
+                        constructor(nodes, links, width, height) {
+                            this.nodes = nodes;
+                            this.links = links;
+                            this.width = width;
+                            this.height = height;
+                            this.running = false;
+                            
+                            // Initialize positions if not set
+                            this.nodes.forEach((node, i) => {
+                                if (typeof node.x !== 'number') {
+                                    node.x = Math.random() * width;
+                                }
+                                if (typeof node.y !== 'number') {
+                                    node.y = Math.random() * height;
+                                }
+                                node.vx = 0;
+                                node.vy = 0;
+                            });
+                        }
+                        
+                        start() {
+                            this.running = true;
+                            this.animate();
+                        }
+                        
+                        stop() {
+                            this.running = false;
+                        }
+                        
+                        animate() {
+                            if (!this.running) return;
+                            
+                            this.tick();
+                            requestAnimationFrame(() => this.animate());
+                        }
+                        
+                        tick() {
+                            const alpha = 0.1;
+                            
+                            // Apply forces
+                            this.nodes.forEach(node => {
+                                // Center force
+                                node.vx += (this.width / 2 - node.x) * 0.01;
+                                node.vy += (this.height / 2 - node.y) * 0.01;
+                                
+                                // Repulsion between nodes
+                                this.nodes.forEach(other => {
+                                    if (node !== other) {
+                                        const dx = node.x - other.x;
+                                        const dy = node.y - other.y;
+                                        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                                        const force = 300 / (distance * distance);
+                                        node.vx += dx * force;
+                                        node.vy += dy * force;
+                                    }
+                                });
+                            });
+                            
+                            // Link forces
+                            this.links.forEach(link => {
+                                const source = this.nodes.find(n => n.id === link.source.id || n.id === link.source);
+                                const target = this.nodes.find(n => n.id === link.target.id || n.id === link.target);
+                                if (source && target) {
+                                    const dx = target.x - source.x;
+                                    const dy = target.y - source.y;
+                                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                                    const targetDistance = 100 / (link.weight || 1);
+                                    const force = (distance - targetDistance) * 0.1;
+                                    const fx = dx * force / distance;
+                                    const fy = dy * force / distance;
+                                    
+                                    source.vx += fx;
+                                    source.vy += fy;
+                                    target.vx -= fx;
+                                    target.vy -= fy;
+                                }
+                            });
+                            
+                            // Update positions
+                            this.nodes.forEach(node => {
+                                if (!node.fx && !node.fy) {
+                                    node.vx *= 0.9; // Friction
+                                    node.vy *= 0.9;
+                                    node.x += node.vx;
+                                    node.y += node.vy;
+                                }
+                            });
+                            
+                            // Notify listeners
+                            if (this.ontick) this.ontick();
+                        }
+                    }
+
+                    const simulation = new SimplePhysics(diagramData.nodes, diagramData.links, width, height);
 
                     // If nodes have pre-computed positions, use them
                     diagramData.nodes.forEach(node => {
@@ -471,108 +627,180 @@ class mower {
                         }
                     });
 
-                    // Draw orbits
-                    const orbits = g.append("g")
-                        .attr("class", "orbits")
-                        .selectAll("path")
-                        .data(diagramData.nodes.filter(d => d.orbit))
-                        .join("path")
-                        .attr("class", "orbit")
-                        .attr("stroke", d => {
-                            const ax = (d.axioms && d.axioms[0]) || "default";
-                            return axiomColors[ax] || axiomColors["default"];
+                    // Draw orbits using native APIs
+                    const orbitsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    orbitsGroup.classList.add('orbits');
+                    g.appendChild(orbitsGroup);
+                    
+                    const orbits = [];
+                    diagramData.nodes.filter(d => d.orbit).forEach(d => {
+                        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        path.classList.add('orbit');
+                        const ax = (d.axioms && d.axioms[0]) || "default";
+                        path.setAttribute('stroke', axiomColors[ax] || axiomColors["default"]);
+                        
+                        // Create orbit path (simplified circular orbit)
+                        const radius = 100 + Math.random() * 50;
+                        const cx = width / 2;
+                        const cy = height / 2;
+                        path.setAttribute('d', "M " + (cx + radius) + "," + cy + " A " + radius + "," + radius + " 0 1,1 " + (cx - radius) + "," + cy + " A " + radius + "," + radius + " 0 1,1 " + (cx + radius) + "," + cy);
+                        
+                        orbitsGroup.appendChild(path);
+                        orbits.push(path);
+                    });
                         });
                     
-                    // Draw links
-                    const link = g.append("g")
-                        .attr("stroke", "#999")
-                        .selectAll("line")
-                        .data(diagramData.links)
-                        .join("line")
-                        .attr("class", "link")
-                        .attr("stroke-width", d => Math.sqrt(d.weight) * 1.5)
-                        .attr("stroke", d => {
-                            const ax = (d.axioms && d.axioms[0]) || "default";
-                            return axiomColors[ax] || axiomColors["default"];
-                        });
+                    // Draw links using native APIs
+                    const linkGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    linkGroup.setAttribute('stroke', '#999');
+                    const links = [];
+                    
+                    diagramData.links.forEach(linkData => {
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.classList.add('link');
+                        line.setAttribute('stroke-width', Math.sqrt(linkData.weight) * 1.5);
+                        const ax = (linkData.axioms && linkData.axioms[0]) || "default";
+                        line.setAttribute('stroke', axiomColors[ax] || axiomColors["default"]);
+                        linkGroup.appendChild(line);
+                        links.push({ element: line, data: linkData });
+                    });
+                    g.appendChild(linkGroup);
 
-                    // Draw nodes
-                    const node = g.append("g")
-                        .selectAll("circle")
-                        .data(diagramData.nodes)
-                        .join("circle")
-                        .attr("class", d => "node" + (d.canonical ? " canonical" : ""))
-                        .attr("data-id", d => d.id)
-                        .attr("r", d => d.canonical ? 12 : 8)
-                        .attr("fill", d => {
-                            if (d.goodness !== undefined) {
-                                // Map goodness to color (red for low, green for high)
-                                const normalized = 1.0 / (1.0 + Math.exp(-d.goodness * 5));
-                                return \`rgb(\${Math.round((1-normalized) * 255)}, \${Math.round(normalized * 255)}, 0)\`;
+                    // Draw nodes using native APIs
+                    const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    const nodes = [];
+                    
+                    diagramData.nodes.forEach(nodeData => {
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.classList.add('node');
+                        if (nodeData.canonical) circle.classList.add('canonical');
+                        circle.setAttribute('data-id', nodeData.id);
+                        circle.setAttribute('r', nodeData.canonical ? 12 : 8);
+                        
+                        // Set fill color
+                        if (nodeData.goodness !== undefined) {
+                            const normalized = 1.0 / (1.0 + Math.exp(-nodeData.goodness * 5));
+                            const r = Math.round((1-normalized) * 255);
+                            const g = Math.round(normalized * 255);
+                            circle.setAttribute('fill', "rgb(" + r + ", " + g + ", 0)");
+                        } else {
+                            const ax = (nodeData.axioms && nodeData.axioms[0]) || "default";
+                            circle.setAttribute('fill', axiomColors[ax] || axiomColors["default"]);
+                        }
+                        
+                        // Add click handler
+                        circle.addEventListener('click', () => showNodeInfo(nodeData));
+                        
+                        // Add drag functionality
+                        setupNodeDrag(circle, nodeData, simulation);
+                        
+                        nodeGroup.appendChild(circle);
+                        nodes.push({ element: circle, data: nodeData });
+                    });
+                    g.appendChild(nodeGroup);
+
+                    // Node labels using native APIs
+                    const labelGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    const labels = [];
+                    
+                    diagramData.nodes.forEach(nodeData => {
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        text.classList.add('label');
+                        text.setAttribute('pointer-events', 'none');
+                        text.setAttribute('dx', '10');
+                        text.setAttribute('dy', '3');
+                        text.textContent = nodeData.name;
+                        labelGroup.appendChild(text);
+                        labels.push({ element: text, data: nodeData });
+                    });
+                    g.appendChild(labelGroup);
+                    
+                    // Drag functionality for nodes
+                    function setupNodeDrag(element, nodeData, simulation) {
+                        let isDragging = false;
+                        
+                        element.addEventListener('pointerdown', (event) => {
+                            isDragging = true;
+                            nodeData.fx = nodeData.x;
+                            nodeData.fy = nodeData.y;
+                            element.style.cursor = 'grabbing';
+                            event.stopPropagation();
+                            event.preventDefault();
+                        });
+                        
+                        document.addEventListener('pointermove', (event) => {
+                            if (isDragging) {
+                                const rect = svg.getBoundingClientRect();
+                                const svgX = (event.clientX - rect.left - currentZoom.tx) / currentZoom.scale;
+                                const svgY = (event.clientY - rect.top - currentZoom.ty) / currentZoom.scale;
+                                nodeData.fx = svgX;
+                                nodeData.fy = svgY;
+                                nodeData.x = svgX;
+                                nodeData.y = svgY;
                             }
-                            
-                            const ax = (d.axioms && d.axioms[0]) || "default";
-                            return axiomColors[ax] || axiomColors["default"];
-                        })
-                        .call(drag(simulation))
-                        .on("click", showNodeInfo);
-
-                    // Node labels
-                    const labels = g.append("g")
-                        .selectAll("text")
-                        .data(diagramData.nodes)
-                        .join("text")
-                        .attr("class", "label")
-                        .attr("pointer-events", "none")
-                        .attr("dx", 10)
-                        .attr("dy", 3)
-                        .text(d => d.name);
+                        });
+                        
+                        document.addEventListener('pointerup', () => {
+                            if (isDragging) {
+                                isDragging = false;
+                                element.style.cursor = 'grab';
+                                // Don't reset fx/fy to allow manual positioning
+                            }
+                        });
+                        
+                        element.style.cursor = 'grab';
+                    }
                     
-                    // Create flow dependency arrows
+                    // Create flow dependency arrows using native APIs
                     function createFlowDependencies() {
-                        flowDependencies.selectAll("*").remove();
+                        // Clear existing flow dependencies
+                        flowDependencies.innerHTML = '';
                         
                         // Filter for dependency links
                         const depLinks = diagramData.links.filter(link => 
                             link.flowType || link.type === "calls" || link.type === "extends" || link.type === "imports");
                         
-                        // Create curved paths for dependencies
-                        flowDependencies.selectAll("path")
-                            .data(depLinks)
-                            .enter()
-                            .append("path")
-                            .attr("class", "flow-arrow")
-                            .attr("stroke-width", d => (d.flowStrength || 1) * 1.5)
-                            .attr("stroke", d => {
-                                // Color based on flow type
-                                switch(d.flowType) {
-                                    case 'invocation': return "#6666cc"; // blue
-                                    case 'inheritance': return "#66cc66"; // green
-                                    case 'dependency': return "#cc6666"; // red
-                                    case 'transformation': return "#cc66cc"; // purple
-                                    default: return "#666666"; // gray
-                                }
-                            })
-                            .attr("d", d => {
-                                const sourceNode = diagramData.nodes.find(n => n.id === d.source);
-                                const targetNode = diagramData.nodes.find(n => n.id === d.target);
-                                if (!sourceNode || !targetNode) return "";
-                                
-                                // Calculate control point for curve
+                        depLinks.forEach(d => {
+                            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            path.classList.add('flow-arrow');
+                            path.setAttribute('stroke-width', (d.flowStrength || 1) * 1.5);
+                            
+                            // Color based on flow type
+                            let color;
+                            switch(d.flowType) {
+                                case 'invocation': color = "#6666cc"; break;
+                                case 'inheritance': color = "#66cc66"; break; 
+                                case 'dependency': color = "#cc6666"; break;
+                                case 'transformation': color = "#cc66cc"; break;
+                                default: color = "#666666";
+                            }
+                            path.setAttribute('stroke', color);
+                            
+                            // Calculate path
+                            const sourceNode = diagramData.nodes.find(n => n.id === d.source);
+                            const targetNode = diagramData.nodes.find(n => n.id === d.target);
+                            if (sourceNode && targetNode) {
                                 const dx = targetNode.x - sourceNode.x;
                                 const dy = targetNode.y - sourceNode.y;
                                 const dr = Math.sqrt(dx * dx + dy * dy);
                                 
                                 // Curved path with arrow
-                                return \`M \${sourceNode.x} \${sourceNode.y} A \${dr} \${dr} 0 0 1 \${targetNode.x} \${targetNode.y}\`;
-                            })
-                            .append("title") // Add tooltip
-                            .text(d => d.description || \`\${d.type}: \${d.source} → \${d.target}\`);
+                                path.setAttribute('d', "M " + sourceNode.x + " " + sourceNode.y + " A " + dr + " " + dr + " 0 0 1 " + targetNode.x + " " + targetNode.y);
+                                
+                                // Add tooltip
+                                const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+                                title.textContent = d.description || d.type + ": " + d.source + " → " + d.target;
+                                path.appendChild(title);
+                            }
+                            
+                            flowDependencies.appendChild(path);
+                        });
                     }
                     
-                    // Create UML class diagrams
+                    // Create UML class diagrams using native APIs
                     function createUMLDiagrams() {
-                        umlContainers.selectAll("*").remove();
+                        // Clear existing UML diagrams
+                        umlContainers.innerHTML = '';
                         
                         const UML_WIDTH = 180;
                         const HEADER_HEIGHT = 30;
@@ -580,132 +808,141 @@ class mower {
                         const METHOD_HEIGHT = 20;
                         
                         diagramData.nodes.forEach(node => {
-                            if (!node.x || !node.y) return; // Skip nodes without positions
+                            if (!node.x || !node.y) return;
                             
-                            // Get UML data - either directly from umlClass or build from metrics
+                            // Get UML data
                             const fields = node.umlClass?.fields || [];
                             const methods = node.umlClass?.methods || [];
                             const fieldCount = fields.length || node.metrics.fieldCount || 0;
                             const methodCount = methods.length || node.metrics.methodCount || 0;
                             
-                            // Calculate total height based on fields and methods
+                            // Calculate total height
                             const totalHeight = HEADER_HEIGHT + 
                                 (fieldCount * FIELD_HEIGHT) + 
                                 (methodCount * METHOD_HEIGHT);
                             
-                            // UML container
-                            const container = umlContainers.append("g")
-                                .attr("transform", \`translate(\${node.x - UML_WIDTH/2}, \${node.y - totalHeight/2})\`);
+                            // UML container group
+                            const container = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                            container.setAttribute('transform', "translate(" + (node.x - UML_WIDTH/2) + ", " + (node.y - totalHeight/2) + ")");
                             
                             // UML class rectangle
-                            container.append("rect")
-                                .attr("class", "uml-class")
-                                .attr("width", UML_WIDTH)
-                                .attr("height", totalHeight)
-                                .attr("rx", 3);
+                            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                            rect.classList.add('uml-class');
+                            rect.setAttribute('width', UML_WIDTH);
+                            rect.setAttribute('height', totalHeight);
+                            rect.setAttribute('rx', '3');
+                            container.appendChild(rect);
                             
                             // Class name
-                            container.append("text")
-                                .attr("class", "uml-title")
-                                .attr("x", UML_WIDTH / 2)
-                                .attr("y", HEADER_HEIGHT / 2 + 5)
-                                .text(node.name);
-                                
-                            // Divider line after header
-                            container.append("line")
-                                .attr("class", "uml-divider")
-                                .attr("x1", 0)
-                                .attr("y1", HEADER_HEIGHT)
-                                .attr("x2", UML_WIDTH)
-                                .attr("y2", HEADER_HEIGHT);
-                                
+                            const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                            title.classList.add('uml-title');
+                            title.setAttribute('x', UML_WIDTH / 2);
+                            title.setAttribute('y', HEADER_HEIGHT / 2 + 5);
+                            title.textContent = node.name;
+                            container.appendChild(title);
+                            
+                            // Header divider
+                            const headerDivider = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                            headerDivider.classList.add('uml-divider');
+                            headerDivider.setAttribute('x1', '0');
+                            headerDivider.setAttribute('y1', HEADER_HEIGHT);
+                            headerDivider.setAttribute('x2', UML_WIDTH);
+                            headerDivider.setAttribute('y2', HEADER_HEIGHT);
+                            container.appendChild(headerDivider);
+                            
                             // Fields section
                             if (fields.length > 0) {
                                 fields.forEach((field, i) => {
-                                    container.append("text")
-                                        .attr("class", "uml-text")
-                                        .attr("x", 10)
-                                        .attr("y", HEADER_HEIGHT + (i + 0.5) * FIELD_HEIGHT)
-                                        .text(field);
+                                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                    text.classList.add('uml-text');
+                                    text.setAttribute('x', '10');
+                                    text.setAttribute('y', HEADER_HEIGHT + (i + 0.5) * FIELD_HEIGHT);
+                                    text.textContent = field;
+                                    container.appendChild(text);
                                 });
                             } else if (fieldCount > 0) {
-                                // If we don't have actual field names but know the count
-                                container.append("text")
-                                    .attr("class", "uml-text")
-                                    .attr("x", 10)
-                                    .attr("y", HEADER_HEIGHT + FIELD_HEIGHT / 2)
-                                    .text(\`Fields: \${fieldCount}\`);
+                                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                text.classList.add('uml-text');
+                                text.setAttribute('x', '10');
+                                text.setAttribute('y', HEADER_HEIGHT + FIELD_HEIGHT / 2);
+                                text.textContent = "Fields: " + fieldCount;
+                                container.appendChild(text);
                             }
                             
-                            // Divider line between fields and methods
+                            // Methods divider and section
                             const fieldsHeight = fieldCount > 0 ? fieldCount * FIELD_HEIGHT : 0;
                             if (methodCount > 0) {
-                                container.append("line")
-                                    .attr("class", "uml-divider")
-                                    .attr("x1", 0)
-                                    .attr("y1", HEADER_HEIGHT + fieldsHeight)
-                                    .attr("x2", UML_WIDTH)
-                                    .attr("y2", HEADER_HEIGHT + fieldsHeight);
-                                    
-                                // Methods section
+                                const methodDivider = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                                methodDivider.classList.add('uml-divider');
+                                methodDivider.setAttribute('x1', '0');
+                                methodDivider.setAttribute('y1', HEADER_HEIGHT + fieldsHeight);
+                                methodDivider.setAttribute('x2', UML_WIDTH);
+                                methodDivider.setAttribute('y2', HEADER_HEIGHT + fieldsHeight);
+                                container.appendChild(methodDivider);
+                                
                                 if (methods.length > 0) {
                                     methods.forEach((method, i) => {
-                                        container.append("text")
-                                            .attr("class", "uml-text")
-                                            .attr("x", 10)
-                                            .attr("y", HEADER_HEIGHT + fieldsHeight + (i + 0.5) * METHOD_HEIGHT)
-                                            .text(\`\${method}()\`);
+                                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                        text.classList.add('uml-text');
+                                        text.setAttribute('x', '10');
+                                        text.setAttribute('y', HEADER_HEIGHT + fieldsHeight + (i + 0.5) * METHOD_HEIGHT);
+                                        text.textContent = method + "()";
+                                        container.appendChild(text);
                                     });
                                 } else {
-                                    // If we don't have actual method names but know the count
-                                    container.append("text")
-                                        .attr("class", "uml-text")
-                                        .attr("x", 10)
-                                        .attr("y", HEADER_HEIGHT + fieldsHeight + METHOD_HEIGHT / 2)
-                                        .text(\`Methods: \${methodCount}\`);
+                                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                    text.classList.add('uml-text');
+                                    text.setAttribute('x', '10');
+                                    text.setAttribute('y', HEADER_HEIGHT + fieldsHeight + METHOD_HEIGHT / 2);
+                                    text.textContent = "Methods: " + methodCount;
+                                    container.appendChild(text);
                                 }
                             }
+                            
+                            umlContainers.appendChild(container);
                         });
                     }
                     
-                    // Show info when a node is clicked
-                    function showNodeInfo(event, d) {
-                        // Clear any previous selections
-                        node.classed("selected", false);
+                    // Show info when a node is clicked using native APIs
+                    function showNodeInfo(d) {
+                        // Clear previous selections
+                        nodes.forEach(nodeObj => {
+                            nodeObj.element.classList.remove('selected');
+                        });
 
-                        // Mark this node as selected
-                        d3.select(this).classed("selected", true);
+                        // Find and select this node  
+                        const selectedNode = nodes.find(nodeObj => nodeObj.data.id === d.id);
+                        if (selectedNode) {
+                            selectedNode.element.classList.add('selected');
+                        }
                         
                         const infoDiv = document.getElementById("nodeInfo");
                         
-                        // Create a detailed info display
-                        let info = \`<strong>\${d.name}</strong> (\${d.type || "unknown"})<br>\`;
+                        let info = "<strong>" + d.name + "</strong> (" + (d.type || "unknown") + ")<br>";
                         
                         if (d.canonical) {
                             info += "<strong style='color:green'>Reference Implementation</strong><br>";
                         }
                         
                         if (d.goodness !== undefined) {
-                            info += \`Maintainability: \${d.goodness.toFixed(2)}<br>\`;
+                            info += "Maintainability: " + d.goodness.toFixed(2) + "<br>";
                         }
                         
                         // Show metrics
                         info += "<strong>Metrics:</strong><br>";
                         for (const [key, value] of Object.entries(d.metrics || {})) {
-                            // Map metric keys to SWE terms
                             let label = key;
                             if (key === "utility") label = "Function Count";
                             if (key === "cost") label = "Complexity";
                             if (key === "goodness") label = "Maintainability";
-                            info += \`· \${label}: \${value}<br>\`;
+                            info += "· " + label + ": " + value + "<br>";
                         }
                         
                         // Show axioms
                         if (d.axioms && d.axioms.length > 0) {
-                            // Map axiom numbers to SWE terms
                             const axiomMap = {
                                 "32": "Hierarchy",
-                                "33": "Dependency",
+                                "33": "Dependency", 
                                 "40": "Mutual Dependency"
                             };
                             info += "<strong>Relationships:</strong> " + d.axioms.map(ax => axiomMap[ax] || ax).join(", ");
@@ -716,36 +953,83 @@ class mower {
                     }
 
 
+                    // Setup simulation tick handler and start
+                    simulation.ontick = () => {
+                        // Update link positions
+                        links.forEach(linkObj => {
+                            const source = diagramData.nodes.find(n => n.id === linkObj.data.source.id || n.id === linkObj.data.source);
+                            const target = diagramData.nodes.find(n => n.id === linkObj.data.target.id || n.id === linkObj.data.target);
+                            if (source && target) {
+                                linkObj.element.setAttribute('x1', source.x);
+                                linkObj.element.setAttribute('y1', source.y);
+                                linkObj.element.setAttribute('x2', target.x);
+                                linkObj.element.setAttribute('y2', target.y);
+                            }
+                        });
+                        
+                        // Update node positions
+                        nodes.forEach(nodeObj => {
+                            nodeObj.element.setAttribute('cx', nodeObj.data.x);
+                            nodeObj.element.setAttribute('cy', nodeObj.data.y);
+                        });
+                        
+                        // Update label positions
+                        labels.forEach(labelObj => {
+                            labelObj.element.setAttribute('x', labelObj.data.x + 10);
+                            labelObj.element.setAttribute('y', labelObj.data.y + 3);
+                        });
+                        
+                        // Update UML containers if visible
+                        if (document.getElementById("showUML").checked) {
+                            createUMLDiagrams();
+                        }
+                        
+                        // Update flow dependencies if visible
+                        if (document.getElementById("showFlowDependency").checked) {
+                            createFlowDependencies();
+                        }
+                    };
+                    
+                    simulation.start();
 
-                    // Event handlers for toggles
+                    // Event handlers for toggles using native APIs
                     document.getElementById("showOrbits").addEventListener("change", function() {
-                        orbits.style("visibility", this.checked ? "visible" : "hidden");
+                        orbitsGroup.style.visibility = this.checked ? "visible" : "hidden";
                         vscode.postMessage({ command: 'updateSetting', key: 'showOrbits', value: this.checked });
                     });
                     
                     document.getElementById("showAxes").addEventListener("change", function() {
-                        g.selectAll(".axes, .grid").style("visibility", this.checked ? "visible" : "hidden");
+                        const axesGridElements = g.querySelectorAll(".axes, .grid");
+                        axesGridElements.forEach(el => {
+                            el.style.visibility = this.checked ? "visible" : "hidden";
+                        });
                         vscode.postMessage({ command: 'updateSetting', key: 'showAxes', value: this.checked });
                     });
                     
                     document.getElementById("highlightCanonical").addEventListener("change", function() {
-                        node.classed("canonical", n => this.checked && n.canonical);
+                        nodes.forEach(nodeObj => {
+                            if (this.checked && nodeObj.data.canonical) {
+                                nodeObj.element.classList.add("canonical");
+                            } else {
+                                nodeObj.element.classList.remove("canonical");
+                            }
+                        });
                         vscode.postMessage({ command: 'updateSetting', key: 'highlightCanonical', value: this.checked });
                     });
                     
                     document.getElementById("showLabels").addEventListener("change", function() {
-                        labels.style("visibility", this.checked ? "visible" : "hidden");
+                        labelGroup.style.visibility = this.checked ? "visible" : "hidden";
                         vscode.postMessage({ command: 'updateSetting', key: 'showLabels', value: this.checked });
                     });
                     
                     document.getElementById("showUML").addEventListener("change", function() {
                         if (this.checked) {
                             createUMLDiagrams();
-                            umlContainers.style("display", "block");
-                            node.style("visibility", "hidden");
+                            umlContainers.style.display = "block";
+                            nodeGroup.style.visibility = "hidden";
                         } else {
-                            umlContainers.style("display", "none");
-                            node.style("visibility", "visible");
+                            umlContainers.style.display = "none";
+                            nodeGroup.style.visibility = "visible";
                         }
                         vscode.postMessage({ command: 'updateSetting', key: 'showUML', value: this.checked });
                     });
@@ -753,64 +1037,78 @@ class mower {
                     document.getElementById("showFlowDependency").addEventListener("change", function() {
                         if (this.checked) {
                             createFlowDependencies();
-                            flowDependencies.style("display", "block");
-                            link.style("visibility", "hidden");
+                            flowDependencies.style.display = "block";
+                            linkGroup.style.visibility = "hidden";
                         } else {
-                            flowDependencies.style("display", "none");
-                            link.style("visibility", "visible");
+                            flowDependencies.style.display = "none";
+                            linkGroup.style.visibility = "visible";
                         }
                         vscode.postMessage({ command: 'updateSetting', key: 'showFlowDependency', value: this.checked });
                     });
-                    
-                    // Layout selection
+                    // Layout selection using native APIs (simplified versions)
                     document.getElementById("layoutType").addEventListener("change", function() {
-                        // Stop current simulation
                         simulation.stop();
                         
                         switch(this.value) {
                             case "force":
-                                simulation
-                                    .force("link", d3.forceLink(diagramData.links).id(d => d.id).distance(100))
-                                    .force("charge", d3.forceManyBody().strength(-300))
-                                    .force("center", d3.forceCenter(width / 2, height / 2))
-                                    .alpha(1).restart();
+                                // Reset to force-directed layout
+                                diagramData.nodes.forEach(node => {
+                                    node.fx = null;
+                                    node.fy = null;
+                                });
+                                simulation.start();
                                 break;
                                 
                             case "radial":
-                                simulation
-                                    .force("link", null)
-                                    .force("charge", d3.forceManyBody().strength(-100))
-                                    .force("r", d3.forceRadial(height * 0.4, width/2, height/2))
-                                    .force("center", d3.forceCenter(width / 2, height / 2))
-                                    .alpha(1).restart();
+                                // Simple radial layout
+                                const centerX = width / 2;
+                                const centerY = height / 2;
+                                const radius = height * 0.3;
+                                diagramData.nodes.forEach((node, i) => {
+                                    const angle = (i / diagramData.nodes.length) * 2 * Math.PI;
+                                    node.fx = centerX + radius * Math.cos(angle);
+                                    node.fy = centerY + radius * Math.sin(angle);
+                                });
+                                simulation.start();
                                 break;
                                 
                             case "hierarchical":
-                                // Create a hierarchical layout
-                                const stratify = d3.stratify()
-                                    .id(d => d.id)
-                                    .parentId(d => {
-                                        // Find parent relationship
-                                        const rel = diagramData.links.find(l => 
-                                            l.target === d.id && l.type === "extends");
-                                        return rel ? rel.source : null;
-                                    });
-                                
+                                // Simple hierarchical layout
                                 try {
-                                    const root = stratify(diagramData.nodes);
-                                    const treeLayout = d3.tree().size([width - 100, height - 100]);
-                                    const nodes = treeLayout(root).descendants();
+                                    // Find root nodes (nodes with no incoming extends relationships)
+                                    const rootNodes = diagramData.nodes.filter(node => 
+                                        !diagramData.links.some(link => 
+                                            link.target === node.id && link.type === "extends"));
                                     
-                                    // Apply positions
-                                    nodes.forEach(n => {
-                                        const node = diagramData.nodes.find(d => d.id === n.id);
-                                        if (node) {
-                                            node.fx = n.x + 50;
-                                            node.fy = n.y + 50;
-                                        }
-                                    });
+                                    let currentLevel = 0;
+                                    const processedNodes = new Set();
+                                    const nodeQueue = rootNodes.map(node => ({ node, level: 0 }));
                                     
-                                    simulation.alpha(0.1).restart();
+                                    while (nodeQueue.length > 0) {
+                                        const { node, level } = nodeQueue.shift();
+                                        if (processedNodes.has(node.id)) continue;
+                                        
+                                        const nodesAtLevel = nodeQueue.filter(item => item.level === level).length + 1;
+                                        const positionAtLevel = [...processedNodes].filter(id => 
+                                            diagramData.nodes.find(n => n.id === id)?.level === level).length;
+                                        
+                                        node.fx = (positionAtLevel + 1) * (width / (nodesAtLevel + 1));
+                                        node.fy = 100 + level * 100;
+                                        node.level = level;
+                                        processedNodes.add(node.id);
+                                        
+                                        // Add children to queue
+                                        diagramData.links.filter(link => 
+                                            link.source === node.id && link.type === "extends")
+                                            .forEach(link => {
+                                                const childNode = diagramData.nodes.find(n => n.id === link.target);
+                                                if (childNode && !processedNodes.has(childNode.id)) {
+                                                    nodeQueue.push({ node: childNode, level: level + 1 });
+                                                }
+                                            });
+                                    }
+                                    
+                                    simulation.start();
                                 } catch (e) {
                                     console.error("Couldn't create hierarchy:", e);
                                     alert("Couldn't create hierarchical layout: " + e.message);
@@ -820,7 +1118,7 @@ class mower {
                         vscode.postMessage({ command: 'updateSetting', key: 'layoutType', value: this.value });
                     });
                     
-                    // Reset layout button
+                    // Reset layout button using native APIs
                     document.getElementById("resetLayout").addEventListener("click", function() {
                         // Clear fixed positions
                         diagramData.nodes.forEach(node => {
@@ -828,11 +1126,11 @@ class mower {
                             node.fy = null;
                         });
                         
-                        // Reset the simulation
-                        simulation.alpha(1).restart();
+                        // Restart the simulation
+                        simulation.start();
                     });
                     
-                    // Zoom to fit button
+                    // Zoom to fit button using native APIs
                     document.getElementById("zoomToFit").addEventListener("click", function() {
                         // Get bounds of all nodes
                         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -858,87 +1156,53 @@ class mower {
                         const scale = Math.min(width / diagramWidth, height / diagramHeight);
                         
                         // Calculate transform to center and scale
-                        const transform = d3.zoomIdentity
-                            .translate(width/2, height/2)
-                            .scale(scale)
-                            .translate(-(minX + maxX)/2, -(minY + maxY)/2);
+                        currentZoom.scale = scale;
+                        currentZoom.tx = width/2 - (minX + maxX)/2 * scale;
+                        currentZoom.ty = height/2 - (minY + maxY)/2 * scale;
                         
-                        // Apply the zoom transform
-                        svg.transition().duration(750).call(zoom.transform, transform);
+                        // Apply the zoom transform with CSS transition
+                        const mainGroup = g;
+                        mainGroup.style.transition = 'transform 0.75s ease-in-out';
+                        mainGroup.style.transform = "translate(" + currentZoom.tx + "px, " + currentZoom.ty + "px) scale(" + currentZoom.scale + ")";
+                        
+                        // Remove transition after animation completes
+                        setTimeout(() => {
+                            mainGroup.style.transition = '';
+                        }, 750);
                     });
 
-                    // Update the simulation on each tick
-                    simulation.on("tick", () => {
-                        link
-                            .attr("x1", d => d.source.x)
-                            .attr("y1", d => d.source.y)
-                            .attr("x2", d => d.target.x)
-                            .attr("y2", d => d.target.y);
-
-                        node
-                            .attr("cx", d => d.x)
-                            .attr("cy", d => d.y);
-
-                        // Update labels
-                        labels
-                            .attr("x", d => d.x)
-                            .attr("y", d => d.y);
-                            
-                        // Update orbit paths
-                        orbits.attr("d", d => {
-                            if (!d.orbit || !d.orbit.length) return "";
-                            
-                            // Create path through orbit points plus the node itself
-                            const points = [...d.orbit, { x: d.x, y: d.y }];
-                            const pathData = d3.line()
-                                .x(p => p.x)
-                                .y(p => p.y)
-                                .curve(d3.curveCardinalClosed.tension(0.7))
-                                (points);
-                                
-                            return pathData;
+                    
+                    // Update orbit paths (simplified without D3.js curves)
+                    function updateOrbits() {
+                        orbits.forEach((path, i) => {
+                            const nodeData = diagramData.nodes.filter(d => d.orbit)[i];
+                            if (nodeData && nodeData.orbit && nodeData.orbit.length) {
+                                // Create simple circular path around node position
+                                const radius = 50;
+                                const cx = nodeData.x || width/2;
+                                const cy = nodeData.y || height/2;
+                                path.setAttribute('d', "M " + (cx + radius) + "," + cy + " A " + radius + "," + radius + " 0 1,1 " + (cx - radius) + "," + cy + " A " + radius + "," + radius + " 0 1,1 " + (cx + radius) + "," + cy);
+                            }
                         });
-                        
-                        // Update UML containers if visible
-                        if (document.getElementById("showUML").checked) {
-                            createUMLDiagrams();
-                        }
-                        
-                        // Update flow dependencies if visible
-                        if (document.getElementById("showFlowDependency").checked) {
-                            createFlowDependencies();
-                        }
-                    });
-
-                    // Drag functionality for nodes
-                    function drag(simulation) {
-                        function dragstarted(event, d) {
-                            if (!event.active) simulation.alphaTarget(0.3).restart();
-                            d.fx = d.x;
-                            d.fy = d.y;
-                        }
-                        function dragged(event, d) {
-                            d.fx = event.x;
-                            d.fy = event.y;
-                        }
-                        function dragended(event, d) {
-                            if (!event.active) simulation.alphaTarget(0);
-                            // Don't reset fx/fy to allow manual positioning
-                        }
-                        return d3.drag()
-                            .on("start", dragstarted)
-                            .on("drag", dragged)
-                            .on("end", dragended);
                     }
                     
+                    // Add orbit update to simulation tick
+                    const originalTick = simulation.ontick;
+                    simulation.ontick = () => {
+                        originalTick();
+                        updateOrbits();
+                    };
+
                     // Initial call to zoom to fit
                     setTimeout(() => {
                         document.getElementById("zoomToFit").click();
                     }, 500);
 
-                    // Add double-click handler to nodes
-                    node.on("dblclick", function(event, d) {
-                        vscode.postMessage({ command: 'revealInEditor', nodeId: d.id });
+                    // Add double-click handler to nodes for editor navigation
+                    nodes.forEach(nodeObj => {
+                        nodeObj.element.addEventListener("dblclick", () => {
+                            vscode.postMessage({ command: 'revealInEditor', nodeId: nodeObj.data.id });
+                        });
                     });
                 </script>
             </body>
