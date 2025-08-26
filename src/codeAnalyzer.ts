@@ -84,9 +84,21 @@ export class CodeAnalyzer {
 
                     try {
                         const text = await fs.promises.readFile(fullPath, "utf8");
-                        const entityId = `file_${fileIndex}`;
-                        const baseName = path.basename(fullPath);
-                        const lines = text.split("\n");
+
+                        // Utility to remove comments from code text
+                        function removeComments(text: string): string {
+                            // Remove multi-line comments (/* ... */ and Python triple quotes)
+                            text = text.replace(/\/\*[\s\S]*?\*\//g, "");
+                            text = text.replace(/'''[\s\S]*?'''/g, "");
+                            text = text.replace(/"""[\s\S]*?"""/g, "");
+                            // Remove single-line comments (// and #)
+                            text = text.replace(/\/\/.*$/gm, "");
+                            text = text.replace(/#.*$/gm, "");
+                            return text;
+                        }
+
+                        const cleanText = removeComments(text);
+                        const lines = cleanText.split("\n");
                         const lineCount = lines.length;
 
                         const functions: string[] = [];
@@ -111,6 +123,8 @@ export class CodeAnalyzer {
                         });
 
                         // Create file entity
+                        const baseName = path.basename(entry.name);
+                        const entityId = `file_${fileIndex}`;
                         const fileEntity: CodeEntity = {
                             id: entityId,
                             name: baseName,

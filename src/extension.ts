@@ -115,6 +115,35 @@ export function activate(context: vscode.ExtensionContext) {
         }
         return undefined;
     }
+
+    async function startGeneration() {
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Generating visualization...",
+            cancellable: true
+        }, async (progress, token) => {
+            // Call your generation function, passing the token
+            await generateVisualization(token);
+        });
+    }
+
+    // Example long-running function
+    async function generateVisualization(token: vscode.CancellationToken) {
+        for (let i = 0; i < 100; i++) {
+            if (token.isCancellationRequested) {
+                vscode.window.showInformationMessage("Generation cancelled.");
+                return;
+            }
+            // Simulate work
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        vscode.window.showInformationMessage("Generation complete!");
+    }
+
+    // Register your command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('extension.startGeneration', startGeneration)
+    );
 }
 
 export function deactivate() {}
